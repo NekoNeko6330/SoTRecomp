@@ -51,7 +51,7 @@ jobs:
               *.7z|*.zip|*.download) 7z x -y "$f" > /dev/null || true ;;
             esac
           done
-          rom=$(find . -type f \( -iname '*.z64' -o -iname '*.download' \) -exec md5sum {} + | awk -v m="$SOT_ROM_MD5" '$1 == m { print $2; exit }')
+          rom=$(find . -type f \( -iname '*.z64' -o -iname '*.download' \) -exec md5sum {} + | awk -v m="$SOT_ROM_MD5" '$1 == m { print substr($0, 35); exit }')
           if [ -z "$rom" ]; then
             echo "::error::No file with md5 $SOT_ROM_MD5 (Sands of Time 1.22, .z64) found in the download"
             find . -type f -exec md5sum {} +
