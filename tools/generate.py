@@ -45,7 +45,7 @@ def build_recompilers():
     # On Windows, build with MSVC (N64Recomp's fmt doesn't build with recent clang)
     compilers = ["-DCMAKE_C_COMPILER=cl", "-DCMAKE_CXX_COMPILER=cl"] if os.name == "nt" else []
     run(["cmake", "-S", src, "-B", build, *generator, *compilers, "-DCMAKE_BUILD_TYPE=Release"])
-    run(["cmake", "--build", build, "--config", "Release", "--target", "N64Recomp", "RSPRecomp", "--parallel"])
+    run(["cmake", "--build", build, "--config", "Release", "--target", "N64RecompCLI", "RSPRecomp", "--parallel"])
     for name, dst in (("N64Recomp", n64recomp), ("RSPRecomp", rsprecomp)):
         candidates = [build / f"{name}{EXE}", build / "Release" / f"{name}{EXE}"]
         found = next((c for c in candidates if c.exists()), None)
