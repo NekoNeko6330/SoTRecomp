@@ -147,9 +147,12 @@ jobs:
           SOT_ROM_URL: ${{ secrets.SOT_ROM_URL }}
         run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
       - name: Generate the recompiled code
+        env:
+          # LLVM's clang and ld.lld build the patches (Visual Studio's clang has no MIPS target)
+          PATCHES_CC: C:/Program Files/LLVM/bin/clang.exe
+          PATCHES_LD: C:/Program Files/LLVM/bin/ld.lld.exe
         run: |
-          # LLVM's clang and ld.lld build the patches
-          export PATH="/c/Program Files/LLVM/bin:$PATH"
+          "$PATCHES_CC" --version
           python tools/generate.py sot.z64
       - name: Build
         shell: pwsh

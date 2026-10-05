@@ -73,7 +73,13 @@ def main():
     run([rsprecomp, "njpgdspMain.toml"])
 
     # Patches: build and recompile them once, so that the CMake build finds all its inputs
-    run(["make", "-C", "patches"])
+    # PATCHES_CC / PATCHES_LD: clang and ld.lld to use (needs LLVM with the MIPS target)
+    overrides = []
+    for var in ("CC", "LD"):
+        value = os.environ.get("PATCHES_" + var)
+        if value:
+            overrides.append(f'{var}="{value}"' if " " in value else f"{var}={value}")
+    run(["make", "-C", "patches", *overrides])
     (ROOT / "RecompiledPatches").mkdir(exist_ok=True)
     run([n64recomp, "patches.toml"])
     print("Done. Now build with CMake (see BUILDING.md).")
