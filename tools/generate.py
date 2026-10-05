@@ -42,7 +42,9 @@ def build_recompilers():
         run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
     build = src / "build"
     generator = ["-G", "Ninja"] if shutil.which("ninja") else []
-    run(["cmake", "-S", src, "-B", build, *generator, "-DCMAKE_BUILD_TYPE=Release"])
+    # On Windows, build with MSVC (N64Recomp's fmt doesn't build with recent clang)
+    compilers = ["-DCMAKE_C_COMPILER=cl", "-DCMAKE_CXX_COMPILER=cl"] if os.name == "nt" else []
+    run(["cmake", "-S", src, "-B", build, *generator, *compilers, "-DCMAKE_BUILD_TYPE=Release"])
     run(["cmake", "--build", build, "--config", "Release", "--target", "N64Recomp", "RSPRecomp", "--parallel"])
     for name, dst in (("N64Recomp", n64recomp), ("RSPRecomp", rsprecomp)):
         candidates = [build / f"{name}{EXE}", build / "Release" / f"{name}{EXE}"]
