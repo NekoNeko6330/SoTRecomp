@@ -111,7 +111,7 @@ bool SetImageAsIcon(const char* filename, SDL_Window* window)
 SDL_Window* window;
 
 ultramodern::WindowHandle create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
-    window = SDL_CreateWindow("Zelda 64: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960, SDL_WINDOW_RESIZABLE );
+    window = SDL_CreateWindow("Sands of Time: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960, SDL_WINDOW_RESIZABLE );
 #if defined(__linux__)
     SetImageAsIcon("icons/512.png",window);
     if (ultramodern::get_graphics_config().wm_option == ultramodern::WindowMode::Fullscreen) { // TODO: Remove once RT64 gets native fullscreen support on Linux
@@ -353,6 +353,7 @@ int main(int argc, char** argv) {
         }
         else if (arg == "--start") {
             recomp::start_game(recomp::Game::MM);
+            recomp::set_current_menu(recomp::Menu::None);
         }
     }
 

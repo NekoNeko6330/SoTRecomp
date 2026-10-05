@@ -1447,7 +1447,7 @@ void set_rt64_hooks() {
 
 void recomp::set_current_menu(Menu menu) {
     open_menu.store(menu);
-    if (menu == recomp::Menu::None) {
+    if (menu == recomp::Menu::None && ui_context) {
         ui_context->rml.system_interface->SetMouseCursor("arrow");
     }
 }
