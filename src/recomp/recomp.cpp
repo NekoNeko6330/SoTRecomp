@@ -303,6 +303,8 @@ extern "C" void recomp_entrypoint(uint8_t * rdram, recomp_context * ctx);
 gpr get_entrypoint_address();
 const char* get_rom_name();
 
+void load_static_sections();
+
 void read_patch_data(uint8_t* rdram, gpr patch_data_address) {
     for (size_t i = 0; i < sizeof(mm_patches_bin); i++) {
         MEM_B(i, patch_data_address) = mm_patches_bin[i];
@@ -316,8 +318,8 @@ void init(uint8_t* rdram, recomp_context* ctx) {
     // Get entrypoint from recomp function
     gpr entrypoint = get_entrypoint_address();
 
-    // Load overlays in the first 1MB
-    load_overlays(0x1000, (int32_t)entrypoint, 1024 * 1024);
+    // Load the code that isn't in overlays (in Sands of Time, code and z64rom's library are outside of the first 1MB)
+    load_static_sections();
 
     // Initial 1MB DMA (rom address 0x1000 = physical address 0x10001000)
     recomp::do_rom_read(rdram, entrypoint, 0x10001000, 0x100000);

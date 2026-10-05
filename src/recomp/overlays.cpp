@@ -1,3 +1,6 @@
+#include <cstdio>
+#include <cassert>
+#include <cstdlib>
 #include <unordered_map>
 #include <algorithm>
 #include <vector>
@@ -63,6 +66,11 @@ extern "C" void load_overlays(uint32_t rom, int32_t ram_addr, uint32_t size) {
             return addr < entry.size + entry.rom_addr;
         }
     );
+    static const bool log_overlays = std::getenv("SOTRECOMP_DEBUG_OVERLAYS") != nullptr;
+    if (log_overlays) {
+        fprintf(stderr, "[overlays] load rom 0x%08X ram 0x%08X size 0x%08X: %d section(s)\n",
+                rom, (uint32_t)ram_addr, size, (int)std::distance(lower, upper));
+    }
     // Load the overlays that were found
     for (auto it = lower; it != upper; ++it) {
         load_overlay(std::distance(&section_table[0], it), it->rom_addr - rom + ram_addr);
@@ -147,6 +155,17 @@ extern "C" void unload_overlays(int32_t ram_addr, uint32_t size) {
 }
 
 void load_patch_functions();
+
+// Register the functions of the sections that aren't overlays (boot, code, z64rom's uLib):
+// they are always loaded at their link address.
+void load_static_sections() {
+    for (size_t section_index = 0; section_index < num_code_sections; section_index++) {
+        const SectionTableEntry& section = section_table[section_index];
+        if ((uint32_t)section.ram_addr < 0x80800000u) {
+            load_overlay(section_index, section.ram_addr);
+        }
+    }
+}
 
 void init_overlays() {
     for (size_t section_index = 0; section_index < num_code_sections; section_index++) {

@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <memory>
 #include <fstream>
 #include <array>
@@ -197,6 +198,11 @@ void ultramodern::join_saving_thread() {
 }
 
 void do_dma(RDRAM_ARG PTR(OSMesgQueue) mq, gpr rdram_address, uint32_t physical_addr, uint32_t size, uint32_t direction) {
+    static const bool log_dma = std::getenv("SOTRECOMP_DEBUG_PI") != nullptr;
+    if (log_dma) {
+        fprintf(stderr, "[pi] %s phys 0x%08X ram 0x%08X size 0x%08X\n", direction == 0 ? "read" : "write",
+                physical_addr, (uint32_t)rdram_address, size);
+    }
     // TODO asynchronous transfer
     // TODO implement unaligned DMA correctly
     if (direction == 0) {

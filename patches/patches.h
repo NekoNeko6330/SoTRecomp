@@ -24,6 +24,11 @@
 #define cosf __cosf_recomp
 #define bzero bzero_recomp
 #define gRandFloat sRandFloat
+// Decomp names of functions that are named differently in the recompiled game (z64hdr names)
+#define THGA_Init THGA_Ct
+#define DmaMgr_RequestSync DmaMgr_SendRequest0
+#define gRegEditor gGameInfo
+
 #include "global.h"
 #include "rt64_extended_gbi.h"
 

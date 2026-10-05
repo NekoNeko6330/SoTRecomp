@@ -1,1 +1,1 @@
-{ recomp::Game::MM, { 0x5B8D64165634D57CULL, u8"zelda_ocarina_mq_dbg.z64", "THE LEGEND OF ZELDA" }},
+{ recomp::Game::MM, { 0x1576194BF8919C8FULL, u8"sot.z64", "Sands of Time" }},

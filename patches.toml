@@ -1,4 +1,4 @@
-# Config file for recompiling patches.
+# Config file for recompiling the patches of the Sands of Time recompilation.
 
 [input]
 # Paths are relative to the location of this config file.
@@ -9,8 +9,9 @@ single_file_output = true
 use_absolute_symbols = true
 
 # Point the recompiler at the symbol files so that it can resolve relocations during recompilation.
-func_reference_syms_file = "dump.toml"
-data_reference_syms_files = [ "data_dump.toml" ]
+# Both are generated from the ROM by tools/gen_sot_syms.py.
+func_reference_syms_file = "sot.syms.toml"
+data_reference_syms_files = [ "sot.datasyms.toml" ]
 
 strict_patch_mode = true
 

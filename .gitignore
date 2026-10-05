@@ -53,3 +53,10 @@ imgui.ini
 rt64.log
 
 node_modules/
+
+# Sands of Time: generated from the ROM by tools/generate.py
+/sot.syms.toml
+/N64Recomp
+/RSPRecomp
+/sot.datasyms.toml
+__pycache__/

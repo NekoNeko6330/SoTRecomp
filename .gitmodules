@@ -10,3 +10,12 @@
 [submodule "lib/lunasvg"]
 	path = lib/lunasvg
 	url = https://github.com/sammycage/lunasvg
+[submodule "lib/oot-decomp"]
+	path = lib/oot-decomp
+	url = https://github.com/zeldaret/oot
+[submodule "lib/z64hdr"]
+	path = lib/z64hdr
+	url = https://github.com/z64tools/z64hdr
+[submodule "lib/N64Recomp"]
+	path = lib/N64Recomp
+	url = https://github.com/N64Recomp/N64Recomp

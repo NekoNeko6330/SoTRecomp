@@ -1,0 +1,25 @@
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index 5cfe8e5..ad42861 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -564,6 +564,20 @@ bool process_instruction(GeneratorType& generator, const N64Recomp::Context& con
+         print_indent();
+         generator.emit_do_break(instr_vram);
+         break;
++    // Trap instructions (e.g. GCC's division by zero checks): ignored
++    case InstrId::cpu_teq:
++    case InstrId::cpu_tne:
++    case InstrId::cpu_tge:
++    case InstrId::cpu_tgeu:
++    case InstrId::cpu_tlt:
++    case InstrId::cpu_tltu:
++    case InstrId::cpu_teqi:
++    case InstrId::cpu_tnei:
++    case InstrId::cpu_tgei:
++    case InstrId::cpu_tgeiu:
++    case InstrId::cpu_tlti:
++    case InstrId::cpu_tltiu:
++        break;
+ 
+     // Cop1 rounding mode
+     case InstrId::cpu_ctc1:

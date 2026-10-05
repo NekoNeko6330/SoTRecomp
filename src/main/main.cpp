@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 #include <filesystem>
+#include <string_view>
 #include <numeric>
 #include <stdexcept>
 
@@ -337,6 +338,23 @@ int main(int argc, char** argv) {
         .get_input = recomp::get_n64_input,
         .set_rumble = recomp::set_rumble,
     };
+
+    // Command line options:
+    //   --rom <path>  validate and store a ROM (instead of selecting it in the launcher)
+    //   --start       start the game directly, without the launcher
+    for (int i = 1; i < argc; i++) {
+        std::string_view arg{ argv[i] };
+        if (arg == "--rom" && i + 1 < argc) {
+            recomp::RomValidationError rom_error = recomp::select_rom(std::filesystem::path{ argv[++i] }, recomp::Game::MM);
+            if (rom_error != recomp::RomValidationError::Good) {
+                fprintf(stderr, "Invalid ROM: %s (error %d)\n", argv[i], (int)rom_error);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (arg == "--start") {
+            recomp::start_game(recomp::Game::MM);
+        }
+    }
 
     recomp::start({}, audio_callbacks, input_callbacks, gfx_callbacks);
     
