@@ -196,7 +196,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fcxx-exceptions"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fcxx-exceptions" -DSOT_BUILD_PATCHES=OFF
           cmake --build build --target Zelda64Recompiled -j 4
       - name: Package
         shell: pwsh

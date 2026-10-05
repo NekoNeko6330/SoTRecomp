@@ -77,12 +77,16 @@ target_sources(PatchesLib PRIVATE
 
 set_source_files_properties(${CMAKE_SOURCE_DIR}/RecompiledPatches/patches.c PROPERTIES COMPILE_FLAGS -fno-strict-aliasing)
 
-# Build patches elf
-add_custom_target(PatchesBin
-    COMMAND make
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
-    BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.bin
-)
+# Build patches elf (needs clang with the MIPS target). With SOT_BUILD_PATCHES=OFF, the patches
+# (patches/patches.bin, patches/patches.elf, RecompiledPatches/) must have been built beforehand.
+option(SOT_BUILD_PATCHES "Build the patches with make" ON)
+if (SOT_BUILD_PATCHES)
+    add_custom_target(PatchesBin
+        COMMAND make
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/patches
+        BYPRODUCTS ${CMAKE_SOURCE_DIR}/patches/patches.bin
+    )
+endif()
 
 # Generate patches_bin.c from patches.bin
 add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/RecompiledPatches/patches_bin.c
