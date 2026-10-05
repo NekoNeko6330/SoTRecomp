@@ -226,6 +226,11 @@ def collect_overlays(files, entries, code_data):
 DEC_ROM = b""
 
 
+def init_worker(rom: bytes):
+    global DEC_ROM
+    DEC_ROM = rom
+
+
 def find_functions(section: Section, data: bytes, hints: dict[int, str]):
     """Find the functions of a section's text with spimdisasm. data: the section's bytes from its vram."""
     from spimdisasm import common, mips
@@ -562,7 +567,7 @@ def main():
     # Overlays are analyzed on their own
     items = [(sec, data, kaleido_pointers if sec.name.startswith("ovl_kaleido") else ())
              for sec, data in overlay_sections]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs) as ex:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=args.jobs, initializer=init_worker, initargs=(dec,)) as ex:
         for (sec, _), funcs in zip(overlay_sections, ex.map(do_overlay, items)):
             sec.functions = funcs
 

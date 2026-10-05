@@ -1,0 +1,213 @@
+name: release
+
+# Builds Sands of Time: Recompiled for Linux and Windows and publishes a GitHub release.
+#
+# The recompiled code is generated from the ROM, which is never stored in this repository:
+# set the repository secret SOT_ROM_URL to a download link of "OoT SoT 1.22" (a Mega link, or a direct
+# link; the .z64 can be inside a .7z or .zip archive). The ROM is only passed between jobs encrypted
+# with that secret, and deleted at the end.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
+      prerelease:
+        description: "Mark as pre-release"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  SOT_ROM_MD5: 33273fb052fa8ea94410352a6ce52f8f
+
+jobs:
+  fetch-rom:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download the ROM
+        env:
+          SOT_ROM_URL: ${{ secrets.SOT_ROM_URL }}
+        run: |
+          if [ -z "$SOT_ROM_URL" ]; then
+            echo "::error::Set the SOT_ROM_URL repository secret to a download link of the Sands of Time 1.22 ROM"
+            exit 1
+          fi
+          sudo apt-get update
+          sudo apt-get install -y megatools p7zip-full
+          mkdir download && cd download
+          if [[ "$SOT_ROM_URL" == *mega.nz* ]]; then
+            megadl --no-progress "$SOT_ROM_URL"
+          else
+            curl -fL -o rom.download "$SOT_ROM_URL"
+          fi
+          for f in *; do
+            case "$f" in
+              *.7z|*.zip|*.download) 7z x -y "$f" > /dev/null || true ;;
+            esac
+          done
+          rom=$(find . -type f \( -iname '*.z64' -o -iname '*.download' \) -exec md5sum {} + | awk -v m="$SOT_ROM_MD5" '$1 == m { print $2; exit }')
+          if [ -z "$rom" ]; then
+            echo "::error::No file with md5 $SOT_ROM_MD5 (Sands of Time 1.22, .z64) found in the download"
+            find . -type f -exec md5sum {} +
+            exit 1
+          fi
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:SOT_ROM_URL -in "$rom" -out ../rom.enc
+      - name: Pass the encrypted ROM to the build jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-encrypted
+          path: rom.enc
+          retention-days: 1
+
+  build-linux:
+    needs: fetch-rom
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev lld llvm clang clang-15
+          # SDL2 from source, like Zelda64Recomp
+          wget -q https://www.libsdl.org/release/SDL2-2.26.1.tar.gz
+          tar -xzf SDL2-2.26.1.tar.gz
+          cd SDL2-2.26.1
+          ./configure > /dev/null
+          make -j$(nproc) > /dev/null
+          sudo make install > /dev/null
+          sudo cp -av /usr/local/lib/libSDL* /lib/x86_64-linux-gnu/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python dependencies
+        run: pip install spimdisasm rabbitizer crunch64 xxhash
+      - uses: actions/download-artifact@v4
+        with:
+          name: rom-encrypted
+      - name: Decrypt the ROM
+        env:
+          SOT_ROM_URL: ${{ secrets.SOT_ROM_URL }}
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
+      - name: Generate the recompiled code
+        run: python tools/generate.py sot.z64
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15
+          cmake --build build --target Zelda64Recompiled -j$(nproc)
+      - name: Package
+        run: |
+          mkdir -p SoTRecompiled
+          cp build/Zelda64Recompiled SoTRecompiled/SoTRecompiled
+          cp -r assets SoTRecompiled/
+          rm -rf SoTRecompiled/assets/scss
+          cp README.md COPYING SoTRecompiled/
+          tar -czf SoTRecompiled-Linux.tar.gz SoTRecompiled
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoTRecompiled-Linux
+          path: SoTRecompiled-Linux.tar.gz
+
+  build-windows:
+    needs: fetch-rom
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Keep LF line endings
+        run: git config --global core.autocrlf false
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        shell: pwsh
+        run: choco install ninja make -y --no-progress
+      - name: Configure Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python dependencies
+        run: pip install spimdisasm rabbitizer crunch64 xxhash
+      - uses: actions/download-artifact@v4
+        with:
+          name: rom-encrypted
+      - name: Decrypt the ROM
+        env:
+          SOT_ROM_URL: ${{ secrets.SOT_ROM_URL }}
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
+      - name: Generate the recompiled code
+        run: |
+          # LLVM's clang and ld.lld build the patches
+          export PATH="/c/Program Files/LLVM/bin:$PATH"
+          python tools/generate.py sot.z64
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fcxx-exceptions"
+          cmake --build build --target Zelda64Recompiled -j 4
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path SoTRecompiled | Out-Null
+          Copy-Item build/Zelda64Recompiled.exe SoTRecompiled/SoTRecompiled.exe
+          Copy-Item build/*.dll SoTRecompiled/
+          Copy-Item -Recurse assets SoTRecompiled/assets
+          Remove-Item -Recurse -Force SoTRecompiled/assets/scss
+          Copy-Item README.md, COPYING SoTRecompiled/
+          Compress-Archive -Path SoTRecompiled -DestinationPath SoTRecompiled-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoTRecompiled-Windows
+          path: SoTRecompiled-Windows.zip
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: SoTRecompiled-*
+          merge-multiple: true
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Sands of Time Recompiled ${{ inputs.tag }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            SoTRecompiled-Linux.tar.gz
+            SoTRecompiled-Windows.zip
+          body: |
+            Native PC port of The Legend of Zelda: Ocarina of Time – **Sands of Time** (1.22), made with N64: Recompiled.
+
+            **You need your own copy of the Sands of Time 1.22 ROM** (`OoT SoT 1.22.z64`, md5 `33273fb052fa8ea94410352a6ce52f8f`, big-endian .z64).
+            Extract the archive, run `SoTRecompiled` (Linux) or `SoTRecompiled.exe` (Windows), select the ROM in the launcher, then start the game.
+            You can also run `SoTRecompiled --rom "OoT SoT 1.22.z64" --start`.
+
+            Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
+
+            This is an early, mostly untested build: the intro and title screen work, gameplay hasn't been tested much.
+            Please report crashes with the console output (e.g. `Failed to find function at 0x...`).
+
+  cleanup:
+    needs: release
+    if: always()
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Delete the encrypted ROM artifact
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: rom-encrypted

@@ -7,7 +7,7 @@ Generate everything the build needs from your Sands of Time ROM.
 Steps:
 1. Build N64Recomp and RSPRecomp (lib/N64Recomp, with the patch in tools/n64recomp-traps.patch)
 2. Decompress the ROM, find the code and generate the recompiler inputs (tools/gen_sot_syms.py)
-3. Recompile the game (RecompiledFuncs/) and the RSP microcodes (rsp/*.cpp)
+3. Recompile the game (RecompiledFuncs/), the RSP microcodes (rsp/*.cpp) and the patches (RecompiledPatches/)
 
 Then build with CMake (see BUILDING.md).
 """
@@ -37,9 +37,9 @@ def build_recompilers():
         raise SystemExit("lib/N64Recomp is missing: run `git submodule update --init --recursive`")
     # Ignore trap instructions (used by z64rom's GCC-built code)
     patch = ROOT / "tools" / "n64recomp-traps.patch"
-    applied = subprocess.run(["git", "apply", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
+    applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
     if applied.returncode != 0:
-        run(["git", "apply", str(patch)], cwd=src)
+        run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
     build = src / "build"
     generator = ["-G", "Ninja"] if shutil.which("ninja") else []
     run(["cmake", "-S", src, "-B", build, *generator, "-DCMAKE_BUILD_TYPE=Release"])
@@ -69,6 +69,11 @@ def main():
     run([n64recomp, "sot.toml"])
     run([rsprecomp, "aspMain.toml"])
     run([rsprecomp, "njpgdspMain.toml"])
+
+    # Patches: build and recompile them once, so that the CMake build finds all its inputs
+    run(["make", "-C", "patches"])
+    (ROOT / "RecompiledPatches").mkdir(exist_ok=True)
+    run([n64recomp, "patches.toml"])
     print("Done. Now build with CMake (see BUILDING.md).")
 
 
