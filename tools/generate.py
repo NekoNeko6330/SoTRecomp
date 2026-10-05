@@ -72,6 +72,11 @@ def main():
     run([rsprecomp, "aspMain.toml"])
     run([rsprecomp, "njpgdspMain.toml"])
 
+    if os.environ.get("SOT_SKIP_PATCHES"):
+        # Patches built elsewhere (they need clang with the MIPS target, e.g. not available on Windows CI)
+        print("Skipping the patches (SOT_SKIP_PATCHES)")
+        return
+
     # Patches: build and recompile them once, so that the CMake build finds all its inputs
     # PATCHES_CC / PATCHES_LD: clang and ld.lld to use (needs LLVM with the MIPS target)
     overrides = []

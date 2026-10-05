@@ -65,6 +65,44 @@ jobs:
           path: rom.enc
           retention-days: 1
 
+  patches:
+    # The patches are MIPS code built with clang; the Windows runner's LLVM has no MIPS target, so build them here.
+    # Their outputs only come from patches/*.c and the game's symbol names.
+    needs: fetch-rom
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build lld llvm clang
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Python dependencies
+        run: pip install spimdisasm rabbitizer crunch64 xxhash
+      - uses: actions/download-artifact@v4
+        with:
+          name: rom-encrypted
+      - name: Decrypt the ROM
+        env:
+          SOT_ROM_URL: ${{ secrets.SOT_ROM_URL }}
+        run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
+      - name: Generate and build the patches
+        run: python tools/generate.py sot.z64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patches-prebuilt
+          retention-days: 1
+          path: |
+            patches/patches.elf
+            patches/patches.bin
+            RecompiledPatches/
+            src/recomp/patch_loading.cpp
+
   build-linux:
     needs: fetch-rom
     runs-on: ubuntu-22.04
@@ -117,7 +155,7 @@ jobs:
           path: SoTRecompiled-Linux.tar.gz
 
   build-windows:
-    needs: fetch-rom
+    needs: [fetch-rom, patches]
     runs-on: windows-2022
     defaults:
       run:
@@ -148,12 +186,12 @@ jobs:
         run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
       - name: Generate the recompiled code
         env:
-          # LLVM's clang and ld.lld build the patches (Visual Studio's clang has no MIPS target)
-          PATCHES_CC: C:/Program Files/LLVM/bin/clang.exe
-          PATCHES_LD: C:/Program Files/LLVM/bin/ld.lld.exe
-        run: |
-          "$PATCHES_CC" --version
-          python tools/generate.py sot.z64
+          SOT_SKIP_PATCHES: 1
+        run: python tools/generate.py sot.z64
+      - name: Get the patches built on Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: patches-prebuilt
       - name: Build
         shell: pwsh
         run: |
@@ -210,7 +248,9 @@ jobs:
     if: always()
     runs-on: ubuntu-22.04
     steps:
-      - name: Delete the encrypted ROM artifact
+      - name: Delete the intermediate artifacts
         uses: geekyeggo/delete-artifact@v5
         with:
-          name: rom-encrypted
+          name: |
+            rom-encrypted
+            patches-prebuilt
