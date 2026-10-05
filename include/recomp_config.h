@@ -6,8 +6,8 @@
 #include "../ultramodern/config.hpp"
 
 namespace recomp {
-    constexpr std::u8string_view program_id = u8"Zelda64Recompiled";
-    constexpr std::u8string_view mm_game_id = u8"mm.n64.us.1.0";
+    constexpr std::u8string_view program_id = u8"SoTRecompiled";
+    constexpr std::u8string_view mm_game_id = u8"oot.sot.1.22";
 
     void load_config();
     void save_config();
