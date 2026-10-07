@@ -1,4 +1,5 @@
 #include "patches.h"
+#include "camera_patches.h"
 #include "transform_ids.h"
 #include "z64cutscene.h"
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
@@ -75,6 +76,17 @@ void camera_post_play_update(PlayState* play) {
             if (force_interpolation) {
                 force_camera_interpolation();
             }
+            // Dedicated section for workarounds where the heuristic fails to detect small camera teleports.
+            bool force_no_interpolation = false;
+
+            // Music Box House. The camera gets teleported by a very small amount when Link gets the Gibdo mask.
+            if (play->sceneId == SCENE_MUSICHOUSE && play->csCtx.scriptIndex == 2 && play->csCtx.curFrame == 525 && active_cam->setting == CAM_SET_FREE0) {
+                force_no_interpolation = true;
+            }
+
+            if (force_no_interpolation) {
+                force_camera_skip_interpolation();
+            }
         }
     }
 }
@@ -94,7 +106,7 @@ void force_camera_ignore_tracking() {
     camera_ignore_tracking = true;
 }
 
-void KaleidoScope_SetView(PauseContext* pauseCtx, f32 eyeX, f32 eyeY, f32 eyeZ) {
+RECOMP_PATCH void KaleidoScope_SetView(PauseContext* pauseCtx, f32 eyeX, f32 eyeY, f32 eyeZ) {
     Vec3f eye;
     Vec3f at;
     Vec3f up;
@@ -116,7 +128,7 @@ void KaleidoScope_SetView(PauseContext* pauseCtx, f32 eyeX, f32 eyeY, f32 eyeZ) 
 }
 
 
-void FileSelect_SetView(FileSelectState* this, f32 eyeX, f32 eyeY, f32 eyeZ) {
+RECOMP_PATCH void FileSelect_SetView(FileSelectState* this, f32 eyeX, f32 eyeY, f32 eyeZ) {
     Vec3f eye;
     Vec3f lookAt;
     Vec3f up;
@@ -196,7 +208,7 @@ bool should_interpolate_perspective(Vec3f* eye, Vec3f* at) {
 /**
  * Apply view to POLY_OPA_DISP, POLY_XLU_DISP (and OVERLAY_DISP if ortho)
  */
-void View_Apply(View* view, s32 mask) {
+RECOMP_PATCH void View_Apply(View* view, s32 mask) {
     mask = (view->flags & mask) | (mask >> 4);
     
     // @recomp Determine if the camera should be interpolated this frame.
@@ -286,17 +298,12 @@ void Camera_ScaledStepToCeilVec3f(Vec3f* target, Vec3f* cur, f32 xzStepScale, f3
 void Camera_SetFocalActorAtOffset(Camera* camera, Vec3f* focalActorPos);
 void Camera_SetUpdateRatesSlow(Camera* camera);
 Vec3f Camera_Vec3sToVec3f(Vec3s* src);
-#define RELOAD_PARAMS(camera) ((camera->animState == 0) || (camera->animState == 10) || (camera->animState == 20))
-#define CAM_RODATA_SCALE(x) ((x)*100.0f)
-#define CAM_RODATA_UNSCALE(x) ((x)*0.01f)
-#define GET_NEXT_RO_DATA(values) ((values++)->val)
-#define GET_NEXT_SCALED_RO_DATA(values) CAM_RODATA_UNSCALE(GET_NEXT_RO_DATA(values))
 
 /**
  * Used for many fixed-based camera settings i.e. camera is fixed in rotation, and often position (but not always)
  */
 // @recomp Modified to not force interpolation while panning.
-s32 Camera_Fixed1(Camera* camera) {
+RECOMP_PATCH s32 Camera_Fixed1(Camera* camera) {
     s32 pad[2];
     s32 yawDiff;
     VecGeo eyeOffset;

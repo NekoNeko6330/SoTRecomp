@@ -1,14 +1,18 @@
 #include "patches.h"
 #include "fault.h"
 #include "transform_ids.h"
-
-u16 next_actor_transform = 0;
+#include "extended_actors.h"
+#include "z64actor.h"
+#include "actor_funcs.h"
 
 extern FaultClient sActorFaultClient;
+void Actor_Destroy(Actor* actor, PlayState* play);
 Actor* Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play);
 void ZeldaArena_Free(void* ptr);
+Actor* Actor_RemoveFromCategory(PlayState* play, ActorContext* actorCtx, Actor* actorToRemove);
+void Actor_FreeOverlay(ActorOverlay* entry);
 
-void Actor_CleanupContext(ActorContext* actorCtx, PlayState* play) {
+RECOMP_PATCH void Actor_CleanupContext(ActorContext* actorCtx, PlayState* play) {
     s32 i;
 
     Fault_RemoveClient(&sActorFaultClient);
@@ -33,21 +37,22 @@ void Actor_CleanupContext(ActorContext* actorCtx, PlayState* play) {
         actorCtx->absoluteSpace = NULL;
     }
 
-    // @recomp Reset the actor transform IDs as all actors have been deleted.
-    next_actor_transform = 0;
+    // @recomp Reset the actor extension data.
+    recomp_clear_all_actor_data();
 
     Play_SaveCycleSceneFlags(&play->state);
     ActorOverlayTable_Cleanup();
 }
 
-u32 create_actor_transform_id() {
-    u32 ret = next_actor_transform;
-    next_actor_transform++;
+RECOMP_DECLARE_EVENT(recomp_should_actor_init(PlayState* play, Actor* actor, bool* should));
+RECOMP_DECLARE_EVENT(recomp_after_actor_init(PlayState* play, Actor* actor));
+RECOMP_DECLARE_EVENT(recomp_should_actor_update(PlayState* play, Actor* actor, bool* should));
+RECOMP_DECLARE_EVENT(recomp_after_actor_update(PlayState* play, Actor* actor));
 
-    return ret;
-}
+RECOMP_PATCH void Actor_Init(Actor* actor, PlayState* play) {
+    // @recomp Allocate the actor's extension data.
+    actor_set_slot(actor, recomp_create_actor_data(actor->id));
 
-void Actor_Init(Actor* actor, PlayState* play) {
     Actor_SetWorldToHome(actor);
     Actor_SetShapeRotToWorld(actor);
     Actor_SetFocus(actor, 0.0f);
@@ -69,14 +74,160 @@ void Actor_Init(Actor* actor, PlayState* play) {
     ActorShape_Init(&actor->shape, 0.0f, NULL, 0.0f);
     if (Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
         Actor_SetObjectDependency(play, actor);
-        actor->init(actor, play);
-        actor->init = NULL;
+        
+        // @recomp Augmented, allowing us to prevent actor init and hook into after init
+        bool shouldInit = true;
+        recomp_should_actor_init(play, actor, &shouldInit);
+        if (shouldInit) {
+            actor->init(actor, play);
+            actor->init = NULL;
+            recomp_after_actor_init(play, actor);
+        } else {
+            actor->init = NULL;
+            Actor_Kill(actor);
+        }
     }
+}
+
+RECOMP_PATCH Actor* Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play) {
+    s32 pad;
+    Player* player = GET_PLAYER(play);
+    Actor* newHead;
+    ActorOverlay* overlayEntry = actor->overlayEntry;
+
+    if ((player != NULL) && (actor == player->lockOnActor)) {
+        Player_Untarget(player);
+        Camera_ChangeMode(Play_GetCamera(play, Play_GetActiveCamId(play)), CAM_MODE_NORMAL);
+    }
+
+    if (actor == actorCtx->targetCtx.fairyActor) {
+        actorCtx->targetCtx.fairyActor = NULL;
+    }
+
+    if (actor == actorCtx->targetCtx.forcedTargetActor) {
+        actorCtx->targetCtx.forcedTargetActor = NULL;
+    }
+
+    if (actor == actorCtx->targetCtx.bgmEnemy) {
+        actorCtx->targetCtx.bgmEnemy = NULL;
+    }
+
+    AudioSfx_StopByPos(&actor->projectedPos);
+    Actor_Destroy(actor, play);
+
+    newHead = Actor_RemoveFromCategory(play, actorCtx, actor);
+
+    // @recomp Destroy the actor's extension data.
+    recomp_destroy_actor_data(actor_get_slot(actor));
     
-    // @recomp Pick a transform ID for this actor and encode it into struct padding
-    u32 cur_transform_id = create_actor_transform_id();
-    actorIdByte0(actor) = (cur_transform_id >>  0) & 0xFF;
-    actorIdByte1(actor) = (cur_transform_id >>  8) & 0xFF;;
+    ZeldaArena_Free(actor);
+
+    if (overlayEntry->vramStart != NULL) {
+        overlayEntry->numLoaded--;
+        Actor_FreeOverlay(overlayEntry);
+    }
+
+    return newHead;
+}
+
+// @recomp Copied from z_actor.c
+typedef struct {
+    /* 0x00 */ PlayState* play;
+    /* 0x04 */ Actor* actor;
+    /* 0x08 */ u32 freezeExceptionFlag;
+    /* 0x0C */ u32 canFreezeCategory;
+    /* 0x10 */ Actor* talkActor;
+    /* 0x14 */ Player* player;
+    /* 0x18 */ u32 updateActorFlagsMask; // Actor will update only if at least 1 actor flag is set in this bitmask
+} UpdateActor_Params;                    // size = 0x1C
+
+RECOMP_PATCH Actor* Actor_UpdateActor(UpdateActor_Params* params) {
+    PlayState* play = params->play;
+    Actor* actor = params->actor;
+    Actor* nextActor;
+
+    if (actor->world.pos.y < -25000.0f) {
+        actor->world.pos.y = -25000.0f;
+    }
+
+    actor->sfxId = 0;
+    actor->audioFlags &= ~(((1 << 4) | (1 << 3) | (1 << 2) | (1 << 1) | (1 << 0)) | ((1 << 6) | (1 << 5))); // ACTOR_AUDIO_FLAG_ALL
+
+    if (actor->init != NULL) {
+        if (Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
+            Actor_SetObjectDependency(play, actor);
+
+            // @recomp Augmented, allowing us to prevent actor init and hook into after init
+            bool shouldInit = true;
+            recomp_should_actor_init(play, actor, &shouldInit);
+            if (shouldInit) {
+                actor->init(actor, play);
+                actor->init = NULL;
+                recomp_after_actor_init(play, actor);
+            } else {
+                actor->init = NULL;
+                Actor_Kill(actor);
+            }
+        }
+        nextActor = actor->next;
+    } else if (actor->update == NULL) {
+        if (!actor->isDrawn) {
+            nextActor = Actor_Delete(&play->actorCtx, actor, play);
+        } else {
+            Actor_Destroy(actor, play);
+            nextActor = actor->next;
+        }
+    } else {
+        if (!Object_IsLoaded(&play->objectCtx, actor->objectSlot)) {
+            Actor_Kill(actor);
+        } else if (((params->freezeExceptionFlag != 0) && !(actor->flags & params->freezeExceptionFlag)) ||
+                   (((!params->freezeExceptionFlag) != 0) &&
+                    (!(actor->flags & (1 << 20)) ||
+                     ((actor->category == ACTORCAT_EXPLOSIVES) && (params->player->stateFlags1 & PLAYER_STATE1_200))) &&
+                    params->canFreezeCategory && (actor != params->talkActor) && (actor != params->player->heldActor) &&
+                    (actor->parent != &params->player->actor))) {
+            CollisionCheck_ResetDamage(&actor->colChkInfo);
+        } else {
+            Math_Vec3f_Copy(&actor->prevPos, &actor->world.pos);
+            actor->xzDistToPlayer = Actor_WorldDistXZToActor(actor, &params->player->actor);
+            actor->playerHeightRel = Actor_HeightDiff(actor, &params->player->actor);
+            actor->xyzDistToPlayerSq = SQ(actor->xzDistToPlayer) + SQ(actor->playerHeightRel);
+
+            actor->yawTowardsPlayer = Actor_WorldYawTowardActor(actor, &params->player->actor);
+            actor->flags &= ~(1 << 24);
+
+            if ((DECR(actor->freezeTimer) == 0) && (actor->flags & params->updateActorFlagsMask)) {
+                if (actor == params->player->lockOnActor) {
+                    actor->isLockedOn = true;
+                } else {
+                    actor->isLockedOn = false;
+                }
+
+                if ((actor->targetPriority != 0) && (params->player->lockOnActor == NULL)) {
+                    actor->targetPriority = 0;
+                }
+
+                Actor_SetObjectDependency(play, actor);
+
+                if (actor->colorFilterTimer != 0) {
+                    actor->colorFilterTimer--;
+                }
+
+                // @recomp Augmented, allowing us to prevent actor update and hook into after update
+                bool shouldUpdate = true;
+                recomp_should_actor_update(play, actor, &shouldUpdate);
+                if (shouldUpdate) {
+                    actor->update(actor, play);
+                    recomp_after_actor_update(play, actor);
+                }
+                DynaPoly_UnsetAllInteractFlags(play, &play->colCtx.dyna, actor);
+            }
+
+            CollisionCheck_ResetDamage(&actor->colChkInfo);
+        }
+        nextActor = actor->next;
+    }
+    return nextActor;
 }
 
 // Extract the transform ID for this actor, add the limb index and write that as the matrix group to POLY_OPA_DISP.
@@ -135,7 +286,7 @@ Gfx* pop_post_limb_matrix_group(Gfx* dlist, Actor* actor) {
 /*
  * Draws the limb at `limbIndex` with a level of detail display lists index by `dListIndex`
  */
-void SkelAnime_DrawLimbLod(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH void SkelAnime_DrawLimbLod(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                            OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw, Actor* actor, s32 lod) {
     LodLimb* limb;
     Gfx* dList;
@@ -197,7 +348,7 @@ void SkelAnime_DrawLimbLod(PlayState* play, s32 limbIndex, void** skeleton, Vec3
  * Draw all limbs of type `LodLimb` in a given skeleton
  * Near or far display list is specified via `lod`
  */
-void SkelAnime_DrawLod(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDrawOpa overrideLimbDraw,
+RECOMP_PATCH void SkelAnime_DrawLod(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDrawOpa overrideLimbDraw,
                        PostLimbDrawOpa postLimbDraw, Actor* actor, s32 lod) {
     LodLimb* rootLimb;
     s32 pad;
@@ -261,7 +412,7 @@ void SkelAnime_DrawLod(PlayState* play, void** skeleton, Vec3s* jointTable, Over
  * Draw a limb of type `LodLimb` contained within a flexible skeleton
  * Near or far display list is specified via `lod`
  */
-void SkelAnime_DrawFlexLimbLod(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH void SkelAnime_DrawFlexLimbLod(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                                OverrideLimbDrawFlex overrideLimbDraw, PostLimbDrawFlex postLimbDraw, Actor* actor,
                                s32 lod, Mtx** mtx) {
     LodLimb* limb;
@@ -332,7 +483,7 @@ void SkelAnime_DrawFlexLimbLod(PlayState* play, s32 limbIndex, void** skeleton, 
  * Limbs in a flexible skeleton have meshes that can stretch to line up with other limbs.
  * An array of matrices is dynamically allocated so each limb can access any transform to ensure its meshes line up.
  */
-void SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
+RECOMP_PATCH void SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
                            OverrideLimbDrawFlex overrideLimbDraw, PostLimbDrawFlex postLimbDraw, Actor* actor,
                            s32 lod) {
     LodLimb* rootLimb;
@@ -403,7 +554,7 @@ void SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTable, 
 /*
  * Draws the limb of the Skeleton `skeleton` at `limbIndex`
  */
-void SkelAnime_DrawLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH void SkelAnime_DrawLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                            OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw, Actor* actor) {
     StandardLimb* limb;
     Gfx* dList;
@@ -463,7 +614,7 @@ void SkelAnime_DrawLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3
 /**
  * Draw all limbs of type `StandardLimb` in a given skeleton to the polyOpa buffer
  */
-void SkelAnime_DrawOpa(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDrawOpa overrideLimbDraw,
+RECOMP_PATCH void SkelAnime_DrawOpa(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDrawOpa overrideLimbDraw,
                        PostLimbDrawOpa postLimbDraw, Actor* actor) {
     StandardLimb* rootLimb;
     s32 pad;
@@ -521,7 +672,7 @@ void SkelAnime_DrawOpa(PlayState* play, void** skeleton, Vec3s* jointTable, Over
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void SkelAnime_DrawFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH void SkelAnime_DrawFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                                OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw, Actor* actor,
                                Mtx** limbMatricies) {
     StandardLimb* limb;
@@ -591,7 +742,7 @@ void SkelAnime_DrawFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, 
  * Limbs in a flexible skeleton have meshes that can stretch to line up with other limbs.
  * An array of matrices is dynamically allocated so each limb can access any transform to ensure its meshes line up.
  */
-void SkelAnime_DrawFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
+RECOMP_PATCH void SkelAnime_DrawFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
                            OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw, Actor* actor) {
     StandardLimb* rootLimb;
     s32 pad;
@@ -661,7 +812,7 @@ void SkelAnime_DrawFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTable, 
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void SkelAnime_DrawTransformFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH void SkelAnime_DrawTransformFlexLimbOpa(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                                         OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw,
                                         TransformLimbDrawOpa transformLimbDraw, Actor* actor, Mtx** mtx) {
     StandardLimb* limb;
@@ -744,7 +895,7 @@ void SkelAnime_DrawTransformFlexLimbOpa(PlayState* play, s32 limbIndex, void** s
  * coordinates.
  * Note that the `TransformLimbDraw` does not have a NULL check, so must be provided even if empty.
  */
-void SkelAnime_DrawTransformFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
+RECOMP_PATCH void SkelAnime_DrawTransformFlexOpa(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
                                     OverrideLimbDrawOpa overrideLimbDraw, PostLimbDrawOpa postLimbDraw,
                                     TransformLimbDrawOpa transformLimbDraw, Actor* actor) {
     StandardLimb* rootLimb;
@@ -825,7 +976,7 @@ void SkelAnime_DrawTransformFlexOpa(PlayState* play, void** skeleton, Vec3s* joi
  * Draws the Skeleton `skeleton`'s limb at index `limbIndex`.  Appends all generated graphics commands to
  * `gfx`.  Returns a pointer to the next gfx to be appended to.
  */
-Gfx* SkelAnime_DrawLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH Gfx* SkelAnime_DrawLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                         OverrideLimbDraw overrideLimbDraw, PostLimbDraw postLimbDraw, Actor* actor, Gfx* gfx) {
     StandardLimb* limb;
     Gfx* dList;
@@ -884,7 +1035,7 @@ Gfx* SkelAnime_DrawLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* 
  * Draws the Skeleton `skeleton`  Appends all generated graphics to `gfx`, and returns a pointer to the
  * next gfx to be appended to.
  */
-Gfx* SkelAnime_Draw(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDraw overrideLimbDraw,
+RECOMP_PATCH Gfx* SkelAnime_Draw(PlayState* play, void** skeleton, Vec3s* jointTable, OverrideLimbDraw overrideLimbDraw,
                     PostLimbDraw postLimbDraw, Actor* actor, Gfx* gfx) {
     StandardLimb* rootLimb;
     s32 pad;
@@ -944,7 +1095,7 @@ Gfx* SkelAnime_Draw(PlayState* play, void** skeleton, Vec3s* jointTable, Overrid
 /**
  * Draw a limb of type `StandardLimb` contained within a flexible skeleton to the specified display buffer
  */
-Gfx* SkelAnime_DrawFlexLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
+RECOMP_PATCH Gfx* SkelAnime_DrawFlexLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec3s* jointTable,
                             OverrideLimbDraw overrideLimbDraw, PostLimbDraw postLimbDraw, Actor* actor, Mtx** mtx,
                             Gfx* gfx) {
     StandardLimb* limb;
@@ -1014,7 +1165,7 @@ Gfx* SkelAnime_DrawFlexLimb(PlayState* play, s32 limbIndex, void** skeleton, Vec
  * Limbs in a flexible skeleton have meshes that can stretch to line up with other limbs.
  * An array of matrices is dynamically allocated so each limb can access any transform to ensure its meshes line up.
  */
-Gfx* SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
+RECOMP_PATCH Gfx* SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, s32 dListCount,
                         OverrideLimbDraw overrideLimbDraw, PostLimbDraw postLimbDraw, Actor* actor, Gfx* gfx) {
     StandardLimb* rootLimb;
     s32 pad;
@@ -1085,7 +1236,7 @@ Gfx* SkelAnime_DrawFlex(PlayState* play, void** skeleton, Vec3s* jointTable, s32
 
 extern MtxF gSkinLimbMatrices[];
 
-void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
+RECOMP_PATCH void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
                    SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6, s32 drawFlags) {
     s32 i;
     SkinLimb** skeleton;
@@ -1145,7 +1296,7 @@ close_disps:;
     CLOSE_DISPS(gfxCtx);
 }
 
-__attribute__((noinline)) s32 scan_for_matrices(Gfx* start, Gfx* end) {
+s32 scan_for_matrices(Gfx* start, Gfx* end) {
     s32 matrix_count = 0;
     Gfx* cur = start;
     // Count any G_MTX commands between the start and end commands.
@@ -1201,7 +1352,7 @@ void tag_actor_displaylists(Actor* actor, PlayState* play, Gfx* opa_start, Gfx* 
 }
 
 // @recomp Patched to automatically add transform tagging to actor matrices based on what DL commands they write in their draw function
-void Actor_Draw(PlayState* play, Actor* actor) {
+RECOMP_PATCH void Actor_Draw(PlayState* play, Actor* actor) {
     Lights* light;
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -1285,3 +1436,10 @@ void Actor_Draw(PlayState* play, Actor* actor) {
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+ActorExtensionId z64recomp_extend_actor(s16 actor_id, u32 size);
+ActorExtensionId z64recomp_extend_actor_all(u32 size);
+
+void* z64recomp_get_extended_actor_data(Actor* actor, ActorExtensionId extension);
+u32 z64recomp_get_actor_spawn_index(Actor* actor);
+

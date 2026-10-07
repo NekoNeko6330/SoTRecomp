@@ -2,13 +2,12 @@
 #include "transform_ids.h"
 #include "overlays/actors/ovl_Arms_Hook/z_arms_hook.h"
 
-// TODO replace these with externs when the recompiler can handle relocations in patches automatically.
-Vec3f D_808C1C10 = { 0.0f, 0.0f, 0.0f };
-Vec3f D_808C1C1C = { 0.0f, 0.0f, 900.0f };
-Vec3f D_808C1C28 = { 0.0f, 500.0f, -3000.0f };
-Vec3f D_808C1C34 = { 0.0f, -500.0f, -3000.0f };
-Vec3f D_808C1C40 = { 0.0f, 500.0f, 0.0f };
-Vec3f D_808C1C4C = { 0.0f, -500.0f, 0.0f };
+extern Vec3f D_808C1C10;
+extern Vec3f D_808C1C1C;
+extern Vec3f D_808C1C28;
+extern Vec3f D_808C1C34;
+extern Vec3f D_808C1C40;
+extern Vec3f D_808C1C4C;
 
 extern Gfx object_link_child_DL_01D960[];
 extern Gfx gHookshotChainDL[];
@@ -17,7 +16,7 @@ extern Gfx gHookshotChainDL[];
 
 void ArmsHook_Shoot(ArmsHook* this, PlayState* play);
 
-void ArmsHook_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void ArmsHook_Draw(Actor* thisx, PlayState* play) {
     ArmsHook* this = THIS;
     f32 f0;
     Player* player = GET_PLAYER(play);
@@ -31,10 +30,7 @@ void ArmsHook_Draw(Actor* thisx, PlayState* play) {
 
         OPEN_DISPS(play->state.gfxCtx);
 
-
-        // @recomp Manually relocate ArmsHook_Shoot because it's an overlay symbol.
-        // TODO remove this when the recompiler handles relocations in patches automatically.
-        if (((ArmsHookActionFunc)actor_relocate(thisx, ArmsHook_Shoot) != this->actionFunc) || (this->timer <= 0)) {
+        if ((ArmsHook_Shoot != this->actionFunc) || (this->timer <= 0)) {
             Matrix_MultVec3f(&D_808C1C10, &this->unk1E0);
             Matrix_MultVec3f(&D_808C1C28, &sp5C);
             Matrix_MultVec3f(&D_808C1C34, &sp50);
@@ -77,7 +73,7 @@ void ArmsHook_Draw(Actor* thisx, PlayState* play) {
 #undef THIS
 
 extern Gfx gHookshotReticleDL[];
-void Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshotDistance) {
+RECOMP_PATCH void Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshotDistance) {
     static Vec3f D_801C094C = { -500.0f, -100.0f, 0.0f };
     CollisionPoly* poly;
     s32 bgId;
@@ -147,7 +143,7 @@ Gfx bowstring_end_hook_dl[] = {
     gsSPEndDisplayList(),
 };
 
-void Player_DrawGameplay(PlayState* play, Player* this, s32 lod, Gfx* cullDList,
+RECOMP_PATCH void Player_DrawGameplay(PlayState* play, Player* this, s32 lod, Gfx* cullDList,
                          OverrideLimbDrawFlex overrideLimbDraw) {
     OPEN_DISPS(play->state.gfxCtx);
 
@@ -189,3 +185,6 @@ void Player_DrawGameplay(PlayState* play, Player* this, s32 lod, Gfx* cullDList,
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
+RECOMP_EXPORT u32 z64recomp_get_bowstring_transform_id() {
+    return BOWSTRING_TRANSFORM_ID;
+}

@@ -1,7 +1,6 @@
 #include "patches.h"
 #include "transform_ids.h"
 #include "overlays/actors/ovl_Object_Kankyo/z_object_kankyo.h"
-#include "overlays/actors/ovl_Eff_Stk/z_eff_stk.h"
 #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
 #include "z64effect.h"
 
@@ -14,7 +13,7 @@ extern Gfx gEffDustDL[];
     ((&(particle).unk_1C)[1])
 
 // @recomp Patched to record when a particle is moved to skip interpolation.
-void func_808DC454(ObjectKankyo* this, PlayState* play) {
+RECOMP_PATCH void func_808DC454(ObjectKankyo* this, PlayState* play) {
     s16 i;
     s32 pad1;
     f32 phi_f20;
@@ -156,7 +155,7 @@ void func_808DC454(ObjectKankyo* this, PlayState* play) {
     }
 }
 
-void func_808DD3C8(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void func_808DD3C8(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     ObjectKankyo* this = (ObjectKankyo*)thisx;
     Vec3f worldPos;
@@ -179,15 +178,12 @@ void func_808DD3C8(Actor* thisx, PlayState* play2) {
     spB4 = false;
 
     if (this->actor.params == 3) {
-        // @recomp Manual relocation, TODO remove when the recompiler handles this automatically.
-        f32* D_808DE5B0_ptr = actor_relocate(thisx, &D_808DE5B0);
-
         temp_f0 = func_80173B48(&play->state) / 1.4e7f;
         temp_f0 = CLAMP(temp_f0, 0.0f, 1.0f);
-        Math_SmoothStepToF(D_808DE5B0_ptr, temp_f0, 0.2f, 0.1f, 0.001f);
+        Math_SmoothStepToF(&D_808DE5B0, temp_f0, 0.2f, 0.1f, 0.001f);
 
         sp68 = play->envCtx.precipitation[PRECIP_SNOW_CUR];
-        sp68 *= *D_808DE5B0_ptr;
+        sp68 *= D_808DE5B0;
 
         if ((play->envCtx.precipitation[PRECIP_SNOW_CUR] >= 32) && (sp68 < 32)) {
             sp68 = 32;
@@ -335,7 +331,7 @@ static inline void pop_effect_tag(GraphicsContext* gfxCtx) {
 }
 
 // @recomp Patched to tag effects.
-void Effect_DrawAll(GraphicsContext* gfxCtx) {
+RECOMP_PATCH void Effect_DrawAll(GraphicsContext* gfxCtx) {
     s32 i;
 
 
@@ -392,51 +388,6 @@ void Effect_DrawAll(GraphicsContext* gfxCtx) {
     }
 }
 
-extern Gfx object_stk2_DL_008920[];
-extern Gfx object_stk2_DL_008A38[];
-extern AnimatedMaterial object_stk2_Matanimheader_009F60[];
-
-void EffStk_Draw(Actor* thisx, PlayState* play) {
-    EffStk* this = (EffStk*)thisx;
-    s32 pad;
-    Camera* activeCam = GET_ACTIVE_CAM(play);
-    Vec3f eye = activeCam->eye;
-    Vec3f quakeOffset;
-
-    quakeOffset = Camera_GetQuakeOffset(activeCam);
-
-    OPEN_DISPS(play->state.gfxCtx);
-
-    Gfx_SetupDL25_Xlu(play->state.gfxCtx);
-    Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
-    Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
-    Matrix_ReplaceRotation(&play->billboardMtxF);
-    Matrix_Translate(0.0f, 0.0f, this->unk148, MTXMODE_APPLY);
-
-    Mtx* mtx = Matrix_NewMtx(play->state.gfxCtx);
-
-    // @recomp Tag the transform. Do not allow edits as this will get edited by the billboard detection and we'll want to skip position during a camera cut too.
-    if (camera_was_skipped()) {
-        gEXMatrixGroupDecomposedSkipPosRot(POLY_XLU_DISP++, actor_transform_id(thisx), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-    }
-    else {
-        gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-    }
-
-    gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    AnimatedMat_DrawAlphaStep(play, Lib_SegmentedToVirtual(object_stk2_Matanimheader_009F60), 1.0f, this->unk144);
-    gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
-    gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_NOISE);
-    gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008920);
-    gSPDisplayList(POLY_XLU_DISP++, object_stk2_DL_008A38);
-
-    // @recomp Pop the transform tag.
-    gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
-
-    CLOSE_DISPS(play->state.gfxCtx);
-}
-
-
 typedef enum {
     /* 0x00 */ CLEAR_TAG_EFFECT_AVAILABLE,
     /* 0x01 */ CLEAR_TAG_EFFECT_DEBRIS,
@@ -491,7 +442,7 @@ static TexturePtr sWaterSplashTextures[] = {
  * applies to all effects of that type while drawing the first effect of that type.
  */
 // @recomp Patched to tag matrices.
-void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
     u8 isMaterialApplied = false;
     s16 i;
     s16 j;
@@ -515,8 +466,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             // Apply the debris effect material if it has not already been applied.
             if (!isMaterialApplied) {
                 isMaterialApplied++;
-                // @recomp Manual relocation, TODO remove when automated.
-                gSPDisplayList(POLY_OPA_DISP++, actor_relocate(thisx, gClearTagDebrisEffectMaterialDL));
+                gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectMaterialDL);
             }
 
             // Draw the debris effect.
@@ -527,8 +477,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             // @recomp Tag the matrix.
             gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-            // @recomp Manual relocation, TODO remove when automated.
-            gSPDisplayList(POLY_OPA_DISP++, actor_relocate(thisx, gClearTagDebrisEffectDL));
+            gSPDisplayList(POLY_OPA_DISP++, gClearTagDebrisEffectDL);
             // @recomp Pop the matrix tag.
             gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
         }
@@ -577,8 +526,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
                 // @recomp Tag the matrix.
                 gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-                // @recomp Manual relocation, TODO remove when automated.
-                gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFlashEffectGroundDL));
+                gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectGroundDL);
                 // @recomp Pop the matrix tag.
                 gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
             }
@@ -592,8 +540,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
         if ((effect->type == CLEAR_TAG_EFFECT_SMOKE) || (effect->type == CLEAR_TAG_EFFECT_ISOLATED_SMOKE)) {
             // Apply the smoke effect material if it has not already been applied.
             if (!isMaterialApplied) {
-                // @recomp Manual relocation, TODO remove when automated.
-                gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFireEffectMaterialDL));
+                gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -612,8 +559,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             // @recomp Tag the matrix.
             gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-            // @recomp Manual relocation, TODO remove when automated.
-            gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFireEffectDL));
+            gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             // @recomp Pop the matrix tag.
             gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
         }
@@ -626,8 +572,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
         if (effect->type == CLEAR_TAG_EFFECT_FIRE) {
             // Apply the fire effect material if it has not already been applied.
             if (!isMaterialApplied) {
-                // @recomp Manual relocation, TODO remove when automated.
-                gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFireEffectMaterialDL));
+                gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectMaterialDL);
                 gDPSetEnvColor(POLY_XLU_DISP++, 255, 215, 255, 128);
                 isMaterialApplied++;
             }
@@ -642,8 +587,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             // @recomp Tag the matrix.
             gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-            // @recomp Manual relocation, TODO remove when automated.
-            gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFireEffectDL));
+            gSPDisplayList(POLY_XLU_DISP++, gClearTagFireEffectDL);
             // @recomp Pop the matrix tag.
             gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
         }
@@ -669,8 +613,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             // @recomp Tag the matrix.
             gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-            // @recomp Manual relocation, TODO remove when automated.
-            gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagFlashEffectDL));
+            gSPDisplayList(POLY_XLU_DISP++, gClearTagFlashEffectDL);
             // @recomp Pop the matrix tag.
             gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
         }
@@ -686,8 +629,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
                 gDPPipeSync(POLY_XLU_DISP++);
                 gDPSetEnvColor(POLY_XLU_DISP++, (u8)effect->envColor.r, (u8)effect->envColor.g, (u8)effect->envColor.b,
                                0);
-                // @recomp Manual relocation, TODO remove when automated.
-                gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagLightRayEffectMaterialDL));
+                gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectMaterialDL);
                 isMaterialApplied++;
             }
 
@@ -703,8 +645,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
             gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             // @recomp Tag the matrix.
             gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx) + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
-            // @recomp Manual relocation, TODO remove when automated.
-            gSPDisplayList(POLY_XLU_DISP++, actor_relocate(thisx, gClearTagLightRayEffectDL));
+            gSPDisplayList(POLY_XLU_DISP++, gClearTagLightRayEffectDL);
             // @recomp Pop the matrix tag.
             gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
         }
@@ -753,7 +694,7 @@ void EnClearTag_DrawEffects(Actor* thisx, PlayState* play) {
 }
 
 // @recomp Patched to tag the two custom lens flares (used by the Igos du Ikana curtains).
-void Environment_DrawCustomLensFlare(PlayState* play) {
+RECOMP_PATCH void Environment_DrawCustomLensFlare(PlayState* play) {
     Vec3f pos;
 
     // @recomp Set up the graphics context.
@@ -798,7 +739,7 @@ void Environment_DrawCustomLensFlare(PlayState* play) {
 }
 
 // @recomp Patched to tag the sun lens flare.
-void Environment_DrawSunLensFlare(PlayState* play, EnvironmentContext* envCtx, View* view, GraphicsContext* gfxCtx,
+RECOMP_PATCH void Environment_DrawSunLensFlare(PlayState* play, EnvironmentContext* envCtx, View* view, GraphicsContext* gfxCtx,
                                   Vec3f vec) {
     if ((play->envCtx.precipitation[PRECIP_RAIN_CUR] == 0) &&
         !(GET_ACTIVE_CAM(play)->stateFlags & CAM_STATE_UNDERWATER) && (play->skyboxId == SKYBOX_NORMAL_SKY)) {

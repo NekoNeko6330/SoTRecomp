@@ -10,7 +10,7 @@ extern EffectSsInfo sEffectSsInfo;
 u8 particle_reset_list[MAX_PARTICLES];
 
 // @recomp Patched to track that the particle has been reset.
-void EffectSS_ResetEntry(EffectSs* particle) {
+RECOMP_PATCH void EffectSS_ResetEntry(EffectSs* particle) {
     u32 i;
 
     particle->type = EFFECT_SS_MAX;
@@ -39,7 +39,7 @@ void EffectSS_ResetEntry(EffectSs* particle) {
 }
 
 // @recomp Check numEntries to be sure enough space has been allocated for tracking particle statuses.
-void EffectSS_Init(PlayState* play, s32 numEntries) {
+RECOMP_PATCH void EffectSS_Init(PlayState* play, s32 numEntries) {
     u32 i;
     EffectSs* effectsSs;
     EffectSsOverlay* overlay;
@@ -66,7 +66,7 @@ void EffectSS_Init(PlayState* play, s32 numEntries) {
 }
 
 // @recomp Add transform tags to particles
-void EffectSS_DrawParticle(PlayState* play, s32 index) {
+RECOMP_PATCH void EffectSS_DrawParticle(PlayState* play, s32 index) {
     EffectSs* entry = &sEffectSsInfo.dataTable[index];
 
     OPEN_DISPS(play->state.gfxCtx);
@@ -101,7 +101,7 @@ extern Gfx gSunSparkleModelDL[];
 extern u8 D_80B23C40[];
 extern u8 D_80B23C2C[];
 
-// @recomp Modified to take the actor as an argument for relocation and to tag firework transforms.
+// @recomp Modified to tag firework transforms.
 void func_80B22FA8_patched(Actor* thisx, EnHanabiStruct* arg0, PlayState* play2) {
     PlayState* play = play2;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -118,10 +118,6 @@ void func_80B22FA8_patched(Actor* thisx, EnHanabiStruct* arg0, PlayState* play2)
     gSPDisplayList(POLY_XLU_DISP++, gSunSparkleMaterialDL);
 
     sp53 = 0xFF;
-
-    // @recomp Manually relocate, TODO remove when automated by recompiler.
-    u8* D_80B23C40_relocated = (u8*)actor_relocate(thisx, D_80B23C40);
-    u8* D_80B23C2C_relocated = (u8*)actor_relocate(thisx, D_80B23C2C);
 
     for (i = 0; i < 400; i++, arg0++) {
         if (arg0->unk_00 != 1) {
@@ -145,18 +141,18 @@ void func_80B22FA8_patched(Actor* thisx, EnHanabiStruct* arg0, PlayState* play2)
 
         if (sp53 != arg0->unk_02) {
             gDPPipeSync(POLY_XLU_DISP++);
-            gDPSetEnvColor(POLY_XLU_DISP++, D_80B23C40_relocated[arg0->unk_02], D_80B23C40_relocated[arg0->unk_02 + 1],
-                           D_80B23C40_relocated[arg0->unk_02 + 2], 255);
+            gDPSetEnvColor(POLY_XLU_DISP++, D_80B23C40[arg0->unk_02], D_80B23C40[arg0->unk_02 + 1],
+                           D_80B23C40[arg0->unk_02 + 2], 255);
 
             sp53 = arg0->unk_02;
         }
 
         if (arg0->unk_01 < 6) {
-            gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, D_80B23C2C_relocated[arg0->unk_02], D_80B23C2C_relocated[arg0->unk_02 + 1],
-                            D_80B23C2C_relocated[arg0->unk_02 + 2], arg0->unk_01 * 50);
+            gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, D_80B23C2C[arg0->unk_02], D_80B23C2C[arg0->unk_02 + 1],
+                            D_80B23C2C[arg0->unk_02 + 2], arg0->unk_01 * 50);
         } else {
-            gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, D_80B23C2C_relocated[arg0->unk_02], D_80B23C2C_relocated[arg0->unk_02 + 1],
-                            D_80B23C2C_relocated[arg0->unk_02 + 2], 255);
+            gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, D_80B23C2C[arg0->unk_02], D_80B23C2C[arg0->unk_02 + 1],
+                            D_80B23C2C[arg0->unk_02 + 2], 255);
         }
 
         gSPDisplayList(POLY_XLU_DISP++, gSunSparkleModelDL);
@@ -168,11 +164,11 @@ void func_80B22FA8_patched(Actor* thisx, EnHanabiStruct* arg0, PlayState* play2)
 }
 
 // @recomp Patched to call a custom version of a vanilla function.
-void EnHanabi_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void EnHanabi_Draw(Actor* thisx, PlayState* play) {
     EnHanabi* this = (EnHanabi*)thisx;
 
     Matrix_Push();
-    // @recomp Call a modified version of the function that takes the actor for relocation purposes.
+    // @recomp Call a modified version of the function that takes the actor for tagging purposes.
     func_80B22FA8_patched(thisx, this->unk_148, play);
     Matrix_Pop();
 }
@@ -180,7 +176,7 @@ void EnHanabi_Draw(Actor* thisx, PlayState* play) {
 Vec3f kankyo_prev_pos_base[DEMOKANKYO_EFFECT_COUNT] = {0};
 
 // @recomp Patched to draw the lost woods particles outside the 4:3 region and tag their transforms.
-void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void DemoKakyo_DrawLostWoodsSparkle(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     DemoKankyo* this = (DemoKankyo*)thisx;
     s16 i;
@@ -290,7 +286,7 @@ extern Gfx gBubbleDL[];
 extern Gfx gLightOrbModelDL[];
 
 // @recomp Patched to draw the lost woods particles outside the 4:3 region and tag their transforms.
-void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     DemoKankyo* this = (DemoKankyo*)thisx;
     s16 i;
@@ -385,13 +381,12 @@ void DemoKankyo_DrawMoonAndGiant(Actor* thisx, PlayState* play2) {
 }
 
 static Vec3f D_80A5AFB0 = { 0.0f, 0.0f, 0.0f };
-static Vec3f D_80A5AFBC = { 0.0f, -1.0f, 0.0f };
 
 // The byte after unk_01 in EnWaterEffectStruct is unused, so we'll use it as a respawn flag.
 #define WATER_EFFECT_RESPAWNED(ptr) (&(ptr)->unk_01)[1]
 
 // @recomp Mark respawned water effect particles so they can be skipped for the first frame.
-void func_80A599E8(EnWaterEffect* this, Vec3f* arg1, u8 arg2) {
+RECOMP_PATCH void func_80A599E8(EnWaterEffect* this, Vec3f* arg1, u8 arg2) {
     s16 i;
     EnWaterEffectStruct* ptr = &this->unk_144[0];
 
@@ -438,7 +433,7 @@ extern Gfx object_water_effect_DL_0043E8[];
 extern Gfx gameplay_keep_DL_06AB30[];
 
 // @recomp Tag the transforms for falling fire rocks.
-void func_80A5A184(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void func_80A5A184(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnWaterEffect* this = (EnWaterEffect*)thisx;
     GraphicsContext* gfxCtx = play->state.gfxCtx;

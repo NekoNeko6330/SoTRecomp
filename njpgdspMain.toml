@@ -1,9 +1,0 @@
-text_offset = 0
-text_size = 0xAF0
-text_address = 0x04001080
-rom_file_path = "rsp/njpgdspMain.text.bin"
-output_file_path = "rsp/njpgdspMain.cpp"
-output_function_name = "njpgdspMain"
-extra_indirect_branch_targets = [
-    
-]

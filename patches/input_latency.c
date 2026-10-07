@@ -1,7 +1,14 @@
-#include "global.h"
-#include "ultra64.h"
+#include "patches.h"
+#include "sys_cfb.h"
+#include "buffers.h"
 #include "fault.h"
-#include "recomp_patches.h"
+#include "audiomgr.h"
+#include "z64speed_meter.h"
+#include "z64vimode.h"
+#include "z64viscvg.h"
+#include "z64vismono.h"
+#include "z64viszbuf.h"
+#include "input.h"
 
 void recomp_set_current_frame_poll_id();
 void PadMgr_HandleRetrace(void);
@@ -27,7 +34,7 @@ typedef enum {
     /* 2 */ VOICE_INIT_SUCCESS // voice initialized
 } VoiceInitStatus;
 
-void PadMgr_HandleRetrace(void) {
+RECOMP_PATCH void PadMgr_HandleRetrace(void) {
     // Execute rumble callback
     if (sPadMgrInstance->rumbleRetraceCallback != NULL) {
         sPadMgrInstance->rumbleRetraceCallback(sPadMgrInstance->rumbleRetraceArg);
@@ -42,27 +49,32 @@ void PadMgr_HandleRetrace(void) {
     if (gFaultMgr.msgId != 0) {
         // If fault is active, no rumble
         PadMgr_RumbleStop();
-    }
-    else if (sPadMgrInstance->rumbleOffTimer > 0) {
+    } else if (sPadMgrInstance->rumbleOffTimer > 0) {
         // If the rumble off timer is active, no rumble
         --sPadMgrInstance->rumbleOffTimer;
         PadMgr_RumbleStop();
-    }
-    else if (sPadMgrInstance->rumbleOnTimer == 0) {
+    } else if (sPadMgrInstance->rumbleOnTimer == 0) {
         // If the rumble on timer is inactive, no rumble
         PadMgr_RumbleStop();
-    }
-    else if (!sPadMgrInstance->isResetting) {
+    } else if (!sPadMgrInstance->isResetting) {
         // If not resetting, update rumble
         PadMgr_UpdateRumble();
         --sPadMgrInstance->rumbleOnTimer;
     }
 }
 
+extern u8 sOcarinaInstrumentId;
+
 void poll_inputs(void) {
     OSMesgQueue* serialEventQueue = PadMgr_AcquireSerialEventQueue();
     // Begin reading controller data
     osContStartReadData(serialEventQueue);
+
+    bool needs_right_stick = recomp_get_analog_cam_enabled() || recomp_aiming_override_mode == RECOMP_AIMING_OVERRIDE_FORCE_RIGHT_STICK;
+    // Suppress the right analog stick if analog camera is active unless the ocarina is in use.
+    recomp_set_right_analog_suppressed(needs_right_stick && sOcarinaInstrumentId == OCARINA_INSTRUMENT_OFF);
+    // Resets this flag for the next frame;
+    recomp_aiming_override_mode = RECOMP_AIMING_OVERRIDE_OFF;
 
     // Wait for controller data
     osRecvMesg(serialEventQueue, NULL, OS_MESG_BLOCK);
@@ -104,7 +116,7 @@ void poll_inputs(void) {
 }
 
 // @recomp Patched to do the actual input polling.
-void PadMgr_GetInput(Input* inputs, s32 gameRequest) {
+RECOMP_PATCH void PadMgr_GetInput(Input* inputs, s32 gameRequest) {
     // @recomp Do an actual poll if gameRequest is true.
     if (gameRequest) {
         poll_inputs();
@@ -117,7 +129,7 @@ void PadMgr_GetInput(Input* inputs, s32 gameRequest) {
 }
 
 // @recomp Just call PadMgr_GetInput.
-void PadMgr_GetInput2(Input* inputs, s32 gameRequest) {
+RECOMP_PATCH void PadMgr_GetInput2(Input* inputs, s32 gameRequest) {
     PadMgr_GetInput(inputs, gameRequest);
 }
 
@@ -126,10 +138,10 @@ u32 recomp_time_us();
 void recomp_measure_latency();
 void* osViGetCurrentFramebuffer_recomp();
 
-OSMesgQueue* rdp_queue_ptr = NULL;
+OSMesgQueue *rdp_queue_ptr = NULL;
 
 // @recomp Immediately sends the graphics task instead of queueing it in the scheduler.
-void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
+RECOMP_PATCH void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     static s32 retryCount = 10;
     static s32 cfbIdx = 0;
     OSTask_t* task = &gfxCtx->task.list.t;
@@ -137,11 +149,11 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     OSTimer timer;
     OSMesg msg;
     CfbInfo* cfb;
-
+    
     // @recomp Additional static members for extra scheduling purposes.
-    static IrqMgrClient irq_client = { 0 };
-    static OSMesgQueue vi_queue = { 0 };
-    static OSMesg vi_buf[8] = { 0 };
+    static IrqMgrClient irq_client = {0};
+    static OSMesgQueue vi_queue = {0};
+    static OSMesg vi_buf[8] = {0};
     static bool created = false;
     if (!created) {
         created = true;
@@ -217,8 +229,7 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
         cfb->features = gfxCtx->viConfigFeatures;
         cfb->xScale = gfxCtx->xScale;
         cfb->yScale = gfxCtx->yScale;
-    }
-    else {
+    } else {
         cfb->viMode = NULL;
     }
     cfb->unk_10 = 0;
@@ -233,7 +244,7 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
     gfxCtx->schedMsgQ = &gSchedContext.cmdQ;
     osSendMesg(&gSchedContext.cmdQ, scTask, OS_MESG_BLOCK);
     Sched_SendEntryMsg(&gSchedContext);
-
+    
     // @recomp Immediately wait on the task to complete to minimize latency for the next one.
     osRecvMesg(&gfxCtx->queue, &msg, OS_MESG_BLOCK);
 
@@ -244,13 +255,13 @@ void Graph_TaskSet00(GraphicsContext* gfxCtx, GameState* gameState) {
             osRecvMesg(&vi_queue, NULL, OS_MESG_BLOCK);
             viCounter++;
         }
-
+        
         // If we didn't wait the full number of VIs needed between frames then wait one extra VI afterwards.
         if (viCounter < gameState->framerateDivisor) {
             osRecvMesg(&vi_queue, NULL, OS_MESG_BLOCK);
         }
     }
-
+    
     // @recomp Flush any extra messages from the VI queue.
     while (osRecvMesg(&vi_queue, NULL, OS_MESG_NOBLOCK) == 0) {
         ;
@@ -263,7 +274,7 @@ extern VisZbuf sGameVisZbuf;
 extern VisMono sGameVisMono;
 extern ViMode sGameViMode;
 
-void GameState_Destroy(GameState* gameState) {
+RECOMP_PATCH void GameState_Destroy(GameState* gameState) {
     AudioMgr_StopAllSfxExceptSystem();
     Audio_Update();
 

@@ -1,6 +1,8 @@
 # VSCode file settings
 .vscode/settings.json
 .vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/tasks.json
 
 # Input elf and rom files
 *.elf
@@ -11,7 +13,7 @@ RecompiledFuncs/
 RecompiledPatches/
 
 # Linux build output
-build/
+build*/
 *.o
 
 # Windows build output
@@ -54,9 +56,13 @@ rt64.log
 
 node_modules/
 
-# Sands of Time: generated from the ROM by tools/generate.py
-/sot.syms.toml
-/N64Recomp
-/RSPRecomp
-/sot.datasyms.toml
-__pycache__/
+# Recompiler Linux binary
+N64Recomp
+RSPRecomp
+.DS_Store
+
+# Cmake build directory
+.cache
+.idea
+build-*
+cmake-build-*

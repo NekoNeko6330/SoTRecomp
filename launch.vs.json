@@ -6,8 +6,9 @@
       "type": "default",
       "project": "CMakeLists.txt",
       "projectTarget": "Zelda64Recompiled.exe",
-      "name": "indigo.exe",
-      "currentDir": "${workspaceRoot}"
+      "name": "Zelda64Recompiled.exe",
+      "currentDir": "${workspaceRoot}",
+      "args": ["--show-console"]
     }
   ]
 }

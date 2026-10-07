@@ -14,7 +14,7 @@ s32 ShrinkWindow_Letterbox_GetSizeTarget(void);
 void ShrinkWindow_Letterbox_SetSizeTarget(s32 target);
 
 // @recomp Patched function to set a global variable if the player can pause
-void KaleidoSetup_Update(PlayState* play) {
+RECOMP_PATCH void KaleidoSetup_Update(PlayState* play) {
     Input* input = CONTROLLER1(&play->state);
     MessageContext* msgCtx = &play->msgCtx;
     Player* player = GET_PLAYER(play);
@@ -67,10 +67,27 @@ void KaleidoSetup_Update(PlayState* play) {
 
 void Sram_SyncWriteToFlash(SramContext* sramCtx, s32 curPage, s32 numPages);
 
-void autosave_reset_timer();
-void autosave_reset_timer_slow();
+void recomp_reset_autosave_timer();
+void recomp_reset_autosave_timer_slow();
 
-void do_autosave(SramContext* sramCtx) {
+RECOMP_DECLARE_EVENT(recomp_on_autosave(PlayState* play));
+RECOMP_DECLARE_EVENT(recomp_after_autosave(PlayState* play));
+
+RECOMP_EXPORT void recomp_do_autosave(PlayState* play) {
+
+    // @recomp_event recomp_on_autosave(PlayState* play): Autosave triggered.
+    recomp_on_autosave(play);
+    // Transfer the scene flags into the cycle flags.
+    Play_SaveCycleSceneFlags(&play->state);
+    // Transfer the cycle flags into the save buffer. Logic copied from func_8014546C.
+    for (s32 i = 0; i < ARRAY_COUNT(gSaveContext.cycleSceneFlags); i++) {
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].chest = gSaveContext.cycleSceneFlags[i].chest;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].switch0 = gSaveContext.cycleSceneFlags[i].switch0;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].switch1 = gSaveContext.cycleSceneFlags[i].switch1;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].clearedRoom = gSaveContext.cycleSceneFlags[i].clearedRoom;
+        gSaveContext.save.saveInfo.permanentSceneFlags[i].collectible = gSaveContext.cycleSceneFlags[i].collectible;
+    }
+
     s32 fileNum = gSaveContext.fileNum;
 
     gSaveContext.save.isOwlSave = SAVE_TYPE_AUTOSAVE;
@@ -78,6 +95,7 @@ void do_autosave(SramContext* sramCtx) {
     gSaveContext.save.saveInfo.checksum = 0;
     gSaveContext.save.saveInfo.checksum = Sram_CalcChecksum(&gSaveContext, offsetof(SaveContext, fileNum));
 
+    SramContext* sramCtx = &play->sramCtx;
     // Copy the saved parts of the global save context into the sram saving buffer.
     Lib_MemCpy(sramCtx->saveBuf, &gSaveContext, offsetof(SaveContext, fileNum));
     // Synchronously save into the owl save slot and the backup owl save slot. 
@@ -85,15 +103,27 @@ void do_autosave(SramContext* sramCtx) {
     Sram_SyncWriteToFlash(sramCtx, gFlashOwlSaveStartPages[fileNum * 2 + 1], gFlashOwlSaveNumPages[fileNum * 2 + 1]);
 
     gSaveContext.save.isOwlSave = false;
+    
+    // @recomp_event recomp_on_autosave(PlayState* play): Autosave finished.
+    recomp_after_autosave(play);
 }
 
-// @recomp Do not clear the save if the save was an autosave.
-void func_80147314(SramContext* sramCtx, s32 fileNum) {
+bool loading_deletes_owl_save = true;
+
+// @recomp_export void recomp_set_loading_deletes_owl_save(bool new_val): Set whether loading an owl save should also delete it.
+RECOMP_EXPORT void recomp_set_loading_deletes_owl_save(bool new_val)
+{
+    loading_deletes_owl_save = new_val;
+}
+
+// @recomp Do not clear the save if the save was an autosave, or if mods have disabled save deletion.
+RECOMP_PATCH void func_80147314(SramContext* sramCtx, s32 fileNum) {
     s32 save_type = gSaveContext.save.isOwlSave;
     gSaveContext.save.isOwlSave = false;
 
-    // @recomp Prevent owl save/autosave deletion if autosaving is enabled.
-    if (!recomp_autosave_enabled()) {
+    // @recomp Prevent owl save/autosave deletion if autosaving is enabled, and...
+    // @recomp_use_export_var loading_deletes_owl_save: Prevent owl save deletion if mods disable it.
+    if (!recomp_get_autosave_enabled() && loading_deletes_owl_save) {
         gSaveContext.save.saveInfo.playerData.newf[0] = '\0';
         gSaveContext.save.saveInfo.playerData.newf[1] = '\0';
         gSaveContext.save.saveInfo.playerData.newf[2] = '\0';
@@ -144,7 +174,7 @@ void delete_owl_save(SramContext* sramCtx, s32 fileNum) {
 }
 
 // @recomp Patched to delete owl saves when making regular saves.
-void func_8014546C(SramContext* sramCtx) {
+RECOMP_PATCH void func_8014546C(SramContext* sramCtx) {
     s32 i;
 
     if (gSaveContext.save.isOwlSave) {
@@ -164,7 +194,7 @@ void func_8014546C(SramContext* sramCtx) {
         // @recomp Delete the owl save.
         delete_owl_save(sramCtx, gSaveContext.fileNum);
         // @recomp Reset the autosave timer.
-        autosave_reset_timer();
+        recomp_reset_autosave_timer();
         for (i = 0; i < ARRAY_COUNT(gSaveContext.cycleSceneFlags); i++) {
             gSaveContext.save.saveInfo.permanentSceneFlags[i].chest = gSaveContext.cycleSceneFlags[i].chest;
             gSaveContext.save.saveInfo.permanentSceneFlags[i].switch0 = gSaveContext.cycleSceneFlags[i].switch0;
@@ -187,7 +217,7 @@ extern u16 D_801F6AF0;
 extern u8 D_801F6AF2;
 
 // @recomp Patched to call the new owl save deletion function.
-void Sram_EraseSave(FileSelectState* fileSelect2, SramContext* sramCtx, s32 fileNum) {
+RECOMP_PATCH void Sram_EraseSave(FileSelectState* fileSelect2, SramContext* sramCtx, s32 fileNum) {
     FileSelectState* fileSelect = fileSelect2;
     s32 pad;
 
@@ -332,11 +362,11 @@ void draw_autosave_icon(PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-void show_autosave_icon() {
+RECOMP_EXPORT void recomp_show_autosave_icon() {
     autosave_icon_counter = AUTOSAVE_ICON_TOTAL_FRAMES;
 }
 
-u32 recomp_autosave_interval() {
+RECOMP_EXPORT u32 recomp_autosave_interval() {
     return 2 * 60 * 1000;
 }
 
@@ -355,12 +385,12 @@ bool reached_final_three_hours() {
     return false;
 }
 
-void autosave_reset_timer() {
+RECOMP_EXPORT void recomp_reset_autosave_timer() {
     last_autosave_time = osGetTime();
     extra_autosave_delay_milliseconds = 0;
 }
 
-void autosave_reset_timer_slow() {
+RECOMP_EXPORT void recomp_reset_autosave_timer_slow() {
     // Set the most recent autosave time in the future to give extra time before an autosave triggers.
     last_autosave_time = osGetTime();
     extra_autosave_delay_milliseconds = 2 * 60 * 1000;
@@ -369,7 +399,7 @@ void autosave_reset_timer_slow() {
 void autosave_post_play_update(PlayState* play) {
     static int frames_since_save_changed = 0;
     static int frames_since_autosave_ready = 0;
-    if (recomp_autosave_enabled()) {
+    if (recomp_get_autosave_enabled()) {
         if (autosave_compare_saves(&gSaveContext, &prev_save_ctx)) {
             frames_since_save_changed = 0;
             Lib_MemCpy(&prev_save_ctx, &gSaveContext, offsetof(SaveContext, fileNum));
@@ -380,7 +410,7 @@ void autosave_post_play_update(PlayState* play) {
 
         OSTime time_now = osGetTime();
 
-        // Check the following conditions:
+        // Check the following conditions for autosave safety:
         // * The UI is in a normal state.
         // * Time is passing.
         // * No message is on screen.
@@ -388,6 +418,10 @@ void autosave_post_play_update(PlayState* play) {
         // * No cutscene is running.
         // * The game is not in cutscene mode.
         // * The clock has not reached the final 3 hours.
+        // * The player is not in an active/inactive minigame (not all minigames use this flag, default is STATUS_END)
+        // * The player is not in a timed minigame in the first set (Shooting Gallery, Butler Race, Spirit House, etc)
+        // * The player is not in a timed minigame in the second set (Goron Race, Treasure Game, Beaver Bros, etc)
+        // * The player is not taking a boat cruise
         // * The player is allowed to pause.
         if (gSaveContext.hudVisibility == HUD_VISIBILITY_ALL &&
             R_TIME_SPEED != 0 &&
@@ -397,6 +431,10 @@ void autosave_post_play_update(PlayState* play) {
             gSaveContext.save.cutsceneIndex < 0xFFF0 &&
             !Play_InCsMode(play) &&
             !reached_final_three_hours() &&
+            gSaveContext.minigameStatus == MINIGAME_STATUS_END &&
+            gSaveContext.timerStates[TIMER_ID_MINIGAME_1] == TIMER_STATE_OFF &&
+            gSaveContext.timerStates[TIMER_ID_MINIGAME_2] == TIMER_STATE_OFF &&
+            !(CHECK_EVENTINF(EVENTINF_41)) &&
             gCanPause
         ) {
             frames_since_autosave_ready++;
@@ -413,20 +451,20 @@ void autosave_post_play_update(PlayState* play) {
             frames_since_autosave_ready >= MIN_FRAMES_SINCE_READY &&
             time_now - last_autosave_time > (OS_USEC_TO_CYCLES(1000 * (recomp_autosave_interval() + extra_autosave_delay_milliseconds)))
         ) {
-            do_autosave(&play->sramCtx);
-            show_autosave_icon();
-            autosave_reset_timer();
+            recomp_do_autosave(play);
+            recomp_show_autosave_icon();
+            recomp_reset_autosave_timer();
         }
     }
     else {
         // Update the last autosave time to the current time to prevent autosaving immediately if autosaves are turned back on. 
-        autosave_reset_timer();
+        recomp_reset_autosave_timer();
     }
     gCanPause = false;
 }
 
 void autosave_init() {
-    autosave_reset_timer_slow();
+    recomp_reset_autosave_timer_slow();
     Lib_MemCpy(&prev_save_ctx, &gSaveContext, offsetof(SaveContext, fileNum));
 }
 
@@ -456,7 +494,7 @@ extern s16 sSceneCutsceneCount;
 bool skip_entry_cutscene = false;
 
 // @recomp Patched to skip the entrance cutscene if the flag is enabled.
-s16 CutsceneManager_FindEntranceCsId(void) {
+RECOMP_PATCH s16 CutsceneManager_FindEntranceCsId(void) {
     PlayState* play;
     s32 csId;
 
@@ -510,13 +548,19 @@ s32 spawn_entrance_from_autosave_entrance(s16 autosave_entrance) {
     }
 }
 
+RECOMP_DECLARE_EVENT(recomp_on_load_save(FileSelectState* fileSelect, SramContext* sramCtx));
+RECOMP_DECLARE_EVENT(recomp_after_load_save(FileSelectState* fileSelect, SramContext* sramCtx));
+
 // @recomp Patched to change the entrance for autosaves and initialize autosaves.
-void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
+RECOMP_PATCH void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     s32 i;
     s32 pad;
     s32 phi_t1 = 0;
     s32 pad1;
     s32 fileNum;
+
+    // @recomp_event recomp_on_load_save(FileSelectState* fileSelect, SramContext* sramCtx): A save-file was just chosen.
+    recomp_on_load_save(fileSelect, sramCtx);
 
     if (gSaveContext.flashSaveAvailable) {
         bzero(sramCtx->saveBuf, SAVE_BUFFER_SIZE);
@@ -585,6 +629,9 @@ void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
     }
     // @recomp Handle autosaves.
     else if (gSaveContext.save.isOwlSave == SAVE_TYPE_AUTOSAVE) {
+        // Clear Rock Sirloin from being held, due to MM hardcoding its behavior
+        gSaveContext.unk_1014 = 0; 
+
         gSaveContext.save.entrance = spawn_entrance_from_autosave_entrance(gSaveContext.save.entrance);
 
         // Skip the turtle cutscene that happens when entering Great Bay Temple.
@@ -641,29 +688,49 @@ void Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
 
     // @recomp Initialize the autosave state tracking.
     autosave_init();
+
+    // @recomp_event recomp_after_load_save(FileSelectState* fileSelect, SramContext* sramCtx): The save has finished loading.
+    recomp_after_load_save(fileSelect, sramCtx);
+}
+
+bool moon_crash_resets_save = true;
+
+// @recomp_export void recomp_set_moon_crash_resets_save(bool new_val): Set whether a moon crash should revert the player's save data.
+RECOMP_EXPORT void recomp_set_moon_crash_resets_save(bool new_val)
+{
+    moon_crash_resets_save = new_val;
 }
 
 extern s32 Actor_ProcessTalkRequest(Actor* actor, GameState* gameState);
 
+RECOMP_DECLARE_EVENT(recomp_on_moon_crash(SramContext* sramCtx));
+RECOMP_DECLARE_EVENT(recomp_after_moon_crash(SramContext* sramCtx));
+
 // @recomp Reset the autosave timer when the moon crashes.
-void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
+RECOMP_PATCH void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     s32 i;
     s32 cutsceneIndex = gSaveContext.save.cutsceneIndex;
 
-    bzero(sramCtx->saveBuf, SAVE_BUFFER_SIZE);
+    // @recomp_event recomp_on_moon_crash(SramContext* sramCtx): A moon crash has just been triggered.
+    recomp_on_moon_crash(sramCtx);
 
-    if (SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2],
-                             gFlashSaveNumPages[gSaveContext.fileNum * 2]) != 0) {
-        SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2 + 1],
-                             gFlashSaveNumPages[gSaveContext.fileNum * 2 + 1]);
+    if (moon_crash_resets_save)
+    {
+        bzero(sramCtx->saveBuf, SAVE_BUFFER_SIZE);
+
+        if (SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2],
+                                 gFlashSaveNumPages[gSaveContext.fileNum * 2]) != 0) {
+            SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2 + 1],
+                                 gFlashSaveNumPages[gSaveContext.fileNum * 2 + 1]);
+        }
+        Lib_MemCpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
+        if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
+            SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2 + 1],
+                                 gFlashSaveNumPages[gSaveContext.fileNum * 2 + 1]);
+            Lib_MemCpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
+        }
+        gSaveContext.save.cutsceneIndex = cutsceneIndex;
     }
-    Lib_MemCpy(&gSaveContext.save, sramCtx->saveBuf, sizeof(Save));
-    if (CHECK_NEWF(gSaveContext.save.saveInfo.playerData.newf)) {
-        SysFlashrom_ReadData(sramCtx->saveBuf, gFlashSaveStartPages[gSaveContext.fileNum * 2 + 1],
-                             gFlashSaveNumPages[gSaveContext.fileNum * 2 + 1]);
-        Lib_MemCpy(&gSaveContext, sramCtx->saveBuf, sizeof(Save));
-    }
-    gSaveContext.save.cutsceneIndex = cutsceneIndex;
 
     for (i = 0; i < ARRAY_COUNT(gSaveContext.eventInf); i++) {
         gSaveContext.eventInf[i] = 0;
@@ -693,25 +760,56 @@ void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     gSaveContext.jinxTimer = 0;
 
     // @recomp Use the slow autosave timer to give the player extra time to respond to the moon crashing to decide if they want to reload their autosave.
-    autosave_reset_timer_slow();
+    recomp_reset_autosave_timer_slow();
+
+    // @recomp_event recomp_after_moon_crash(SramContext* sramCtx): The effects of moon crash have been written.
+    recomp_after_moon_crash(sramCtx);
 }
 
 
-// @recomp If autosave is enabled, skip the part of the owl statue dialog that talks about the file being deleted on load, since it's not true.
-void ObjWarpstone_Update(Actor* thisx, PlayState* play) {
+bool owls_save_and_quit = true;
+
+// @recomp_export void recomp_set_owls_save_and_quit(bool new_val): Set if owls should use their code to save and quit. If false is passed, owl saves now do nothing.
+RECOMP_EXPORT void recomp_set_owls_save_and_quit(bool new_val)
+{
+    owls_save_and_quit = new_val;
+}
+
+RECOMP_DECLARE_EVENT(recomp_on_owl_update(ObjWarpstone* this, PlayState* play));
+RECOMP_DECLARE_EVENT(recomp_on_owl_save(ObjWarpstone* this, PlayState* play));
+RECOMP_DECLARE_EVENT(recomp_after_owl_save(ObjWarpstone* this, PlayState* play));
+
+// @recomp If autosave is enabled or owl save deletion is disabled, skip the part of the owl statue dialog that talks about the file being deleted on load, since it's not true.
+RECOMP_PATCH void ObjWarpstone_Update(Actor* thisx, PlayState* play) {
     ObjWarpstone* this = (ObjWarpstone*)thisx;
     s32 pad;
+
+    // @recomp_event recomp_on_owl_update(ObjWarpstone* this, PlayState* play): Allow mods to handle owl update frames.
+    recomp_on_owl_update(this, play);
 
     if (this->isTalking) {
         if (Actor_TextboxIsClosing(&this->dyna.actor, play)) {
             this->isTalking = false;
         } else if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
             if (play->msgCtx.choiceIndex != 0) {
+                // @recomp_event recomp_on_owl_save(ObjWarpstone* this, PlayState* play): The player chose to save from an owl statue.
+                recomp_on_owl_save(this, play);
+
                 Audio_PlaySfx_MessageDecide();
-                play->msgCtx.msgMode = MSGMODE_OWL_SAVE_0;
+
+                // @recomp_use_export_var owls_save_and_quit: Only use normal owl save if quit flag is set.
+                if (owls_save_and_quit) {
+                    play->msgCtx.msgMode = MSGMODE_OWL_SAVE_0;
+                } else {
+                    Message_CloseTextbox(play);
+                }
+
                 play->msgCtx.unk120D6 = 0;
                 play->msgCtx.unk120D4 = 0;
                 gSaveContext.save.owlWarpId = OBJ_WARPSTONE_GET_OWL_WARP_ID(&this->dyna.actor);
+
+                // @recomp_event recomp_after_owl_save(ObjWarpstone* this, PlayState* play): Owl save is finished.
+                recomp_after_owl_save(this, play);
             } else {
                 Message_CloseTextbox(play);
             }
@@ -722,8 +820,8 @@ void ObjWarpstone_Update(Actor* thisx, PlayState* play) {
         Actor_OfferTalkNearColChkInfoCylinder(&this->dyna.actor, play);
     }
 
-    // @recomp Skip the text talking about the save being deleted on load, if autosave is enabled.
-    if (recomp_autosave_enabled()) {
+    // @recomp_use_export_var loading_deletes_owl_save: Skip the text talking about the save being deleted on load, if autosave is enabled or if owl save deletion is disabled.
+    if (recomp_get_autosave_enabled() || !loading_deletes_owl_save) {
         if (this->isTalking && play->msgCtx.currentTextId == 0xC01 && play->msgCtx.msgBufPos == 269) {
             play->msgCtx.msgBufPos = 530;
         }

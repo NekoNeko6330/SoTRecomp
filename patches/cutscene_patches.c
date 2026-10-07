@@ -6,7 +6,7 @@
 
 CsCmdActorCue* prev_cues_checked[ARRAY_COUNT(((CutsceneContext*)0)->actorCues)] = {0};
 
-void Cutscene_ActorTranslate(Actor* actor, PlayState* play, s32 cueChannel) {
+RECOMP_PATCH void Cutscene_ActorTranslate(Actor* actor, PlayState* play, s32 cueChannel) {
     Vec3f startPos;
     Vec3f endPos;
     CsCmdActorCue* cue = play->csCtx.actorCues[cueChannel];
@@ -39,7 +39,7 @@ extern EnHorseCsFunc D_808890F0[];
 extern EnHorseCsFunc D_8088911C[];
 
 // @recomp Patched to skip interpolation on Epona when she's teleported by a cutscene.
-void func_80884718(EnHorse* this, PlayState* play) {
+RECOMP_PATCH void func_80884718(EnHorse* this, PlayState* play) {
     CsCmdActorCue* cue;
 
     if (Cutscene_IsCueInChannel(play, CS_CMD_ACTOR_CUE_112)) {
@@ -63,23 +63,19 @@ void func_80884718(EnHorse* this, PlayState* play) {
             }
 
             this->cueId = cue->id;
-            // @recomp Manual relocation, TODO remove when automated.
-            EnHorseCsFunc* D_808890F0_reloc = actor_relocate(&this->actor, D_808890F0);
-            if (D_808890F0_reloc[this->cueId] != NULL) {
-                D_808890F0_reloc[this->cueId](this, play, cue);
+            if (D_808890F0[this->cueId] != NULL) {
+                D_808890F0[this->cueId](this, play, cue);
             }
         }
 
-        // @recomp Manual relocation, TODO remove when automated.
-        EnHorseCsFunc* D_8088911C_reloc = actor_relocate(&this->actor, D_8088911C);
-        if (D_8088911C_reloc[this->cueId] != NULL) {
-            D_8088911C_reloc[this->cueId](this, play, cue);
+        if (D_8088911C[this->cueId] != NULL) {
+            D_8088911C[this->cueId](this, play, cue);
         }
     }
 }
 
 // @recomp Patched to skip interpolation on Epona when she's teleported by a cutscene.
-void func_80883B70(EnHorse* this, CsCmdActorCue* cue) {
+RECOMP_PATCH void func_80883B70(EnHorse* this, CsCmdActorCue* cue) {
     // @recomp Being teleported by a new cue, so skip interpolation.
     actor_set_interpolation_skipped(&this->actor);
 
@@ -94,7 +90,7 @@ void func_80883B70(EnHorse* this, CsCmdActorCue* cue) {
 }
 
 // @recomp Patched to skip interpolation on Link when he's teleported to a new cue.
-void Player_Cutscene_SetPosAndYawToStart(Player* this, CsCmdActorCue* cue) {
+RECOMP_PATCH void Player_Cutscene_SetPosAndYawToStart(Player* this, CsCmdActorCue* cue) {
     // @recomp Being teleported by a new cue, so skip interpolation.
     actor_set_interpolation_skipped(&this->actor);
 
@@ -108,7 +104,7 @@ void Player_Cutscene_SetPosAndYawToStart(Player* this, CsCmdActorCue* cue) {
 CsCmdActorCue* prev_link_cue = NULL;
 
 // @recomp Patched to skip interpolation on Link when he's teleported to a new cue.
-void Player_Cutscene_Translate(PlayState* play, Player* this, CsCmdActorCue* cue) {
+RECOMP_PATCH void Player_Cutscene_Translate(PlayState* play, Player* this, CsCmdActorCue* cue) {
     f32 startX = cue->startPos.x;
     f32 startY = cue->startPos.y;
     f32 startZ = cue->startPos.z;

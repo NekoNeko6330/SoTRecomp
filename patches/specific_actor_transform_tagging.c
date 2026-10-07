@@ -11,6 +11,9 @@
 #include "overlays/actors/ovl_En_Goroiwa/z_en_goroiwa.h"
 #include "overlays/actors/ovl_En_Twig/z_en_twig.h"
 #include "overlays/actors/ovl_En_Honotrap/z_en_honotrap.h"
+#include "overlays/actors/ovl_En_Tanron1/z_en_tanron1.h"
+#include "overlays/actors/ovl_En_Kusa2/z_en_kusa2.h"
+#include "overlays/actors/ovl_Obj_Grass/z_obj_grass.h"
 
 // Decomp renames, TODO update decomp and remove these
 #define EnHonotrap_FlameGroup func_8092F878
@@ -30,7 +33,7 @@ extern Gfx gEffWaterRippleDL[];
 u8 special_effect_reset_states[MAX_SPECIAL_EFFECTS];
 
 // @recomp Tag Wart's bubbles
-void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     s32 i;
     s32 j;
@@ -46,17 +49,14 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
 
     tanron2 = play->actorCtx.actorLists[ACTORCAT_BOSS].first;
 
-    // @recomp Manual relocation, TODO remove this when the recompiler does it automatically.
-    EnTanron2** D_80BB8458_relocated = (EnTanron2**)actor_relocate(thisx, D_80BB8458);
-
     for (i = 0; i < ARRAY_COUNT(D_80BB8458); i++) {
-        D_80BB8458_relocated[i] = NULL;
+        D_80BB8458[i] = NULL;
     }
 
     found = 0;
     while (tanron2 != NULL) {
         if (tanron2->params < 100) {
-            D_80BB8458_relocated[found] = (EnTanron2*)tanron2;
+            D_80BB8458[found] = (EnTanron2*)tanron2;
             found++;
         }
         tanron2 = tanron2->next;
@@ -64,26 +64,26 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
 
     for (j = 0; j < found - 1; j++) {
         for (i = 0; i < found - 1; i++) {
-            if (D_80BB8458_relocated[i + 1] != NULL) {
-                if (D_80BB8458_relocated[i]->actor.projectedPos.z < D_80BB8458_relocated[i + 1]->actor.projectedPos.z) {
-                    SWAP(EnTanron2*, D_80BB8458_relocated[i], D_80BB8458_relocated[i + 1]);
+            if (D_80BB8458[i + 1] != NULL) {
+                if (D_80BB8458[i]->actor.projectedPos.z < D_80BB8458[i + 1]->actor.projectedPos.z) {
+                    SWAP(EnTanron2*, D_80BB8458[i], D_80BB8458[i + 1]);
                 }
             }
         }
     }
 
     for (i = 0; i < ARRAY_COUNT(D_80BB8458); i++) {
-        if (D_80BB8458_relocated[i] != NULL) {
-            Matrix_Translate(D_80BB8458_relocated[i]->actor.world.pos.x, D_80BB8458_relocated[i]->actor.world.pos.y,
-                             D_80BB8458_relocated[i]->actor.world.pos.z, MTXMODE_NEW);
+        if (D_80BB8458[i] != NULL) {
+            Matrix_Translate(D_80BB8458[i]->actor.world.pos.x, D_80BB8458[i]->actor.world.pos.y,
+                             D_80BB8458[i]->actor.world.pos.z, MTXMODE_NEW);
             Matrix_ReplaceRotation(&play->billboardMtxF);
-            Matrix_Scale(D_80BB8458_relocated[i]->actor.scale.x, D_80BB8458_relocated[i]->actor.scale.y, 0.0f, MTXMODE_APPLY);
-            Matrix_RotateZS(D_80BB8458_relocated[i]->unk_14A, MTXMODE_APPLY);
+            Matrix_Scale(D_80BB8458[i]->actor.scale.x, D_80BB8458[i]->actor.scale.y, 0.0f, MTXMODE_APPLY);
+            Matrix_RotateZS(D_80BB8458[i]->unk_14A, MTXMODE_APPLY);
             Matrix_Scale(0.13f, 0.14299999f, 0.13f, MTXMODE_APPLY);
-            Matrix_RotateZS(-D_80BB8458_relocated[i]->unk_14A, MTXMODE_APPLY);
+            Matrix_RotateZS(-D_80BB8458[i]->unk_14A, MTXMODE_APPLY);
 
             // @recomp Tag the transform.
-            gEXMatrixGroupSimple(POLY_XLU_DISP++, actor_transform_id(&D_80BB8458_relocated[i]->actor) + 0,
+            gEXMatrixGroupSimple(POLY_XLU_DISP++, actor_transform_id(&D_80BB8458[i]->actor) + 0,
                 G_EX_PUSH, G_MTX_MODELVIEW,
                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
                 G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
@@ -100,14 +100,11 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
 
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, 150);
     gSPDisplayList(POLY_XLU_DISP++, gWartShadowMaterialDL);
-    
-    // @recomp Manual relocation, TODO remove this when the recompiler does it automatically.
-    Boss04** D_80BB8450_relocated = (Boss04**)actor_relocate(thisx, &D_80BB8450);
 
     tanron2 = play->actorCtx.actorLists[ACTORCAT_BOSS].first;
     while (tanron2 != NULL) {
         if ((tanron2->params < 100) && (((EnTanron2*)tanron2)->unk_15B != 0)) {
-            Matrix_Translate(tanron2->world.pos.x, (*D_80BB8450_relocated)->actor.floorHeight, tanron2->world.pos.z, MTXMODE_NEW);
+            Matrix_Translate(tanron2->world.pos.x, D_80BB8450->actor.floorHeight, tanron2->world.pos.z, MTXMODE_NEW);
             Matrix_Scale(0.6f, 0.0f, 0.6f, MTXMODE_APPLY);
 
             // @recomp Tag the transform.
@@ -136,12 +133,9 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
     while (tanron2 != NULL) {
         if ((tanron2->params < 100) && (((EnTanron2*)tanron2)->unk_15B != 0) &&
             (tanron2->world.pos.y <= tanron2->floorHeight)) {
-            Matrix_Translate(tanron2->world.pos.x, (*D_80BB8450_relocated)->actor.floorHeight + 2.0f, tanron2->world.pos.z,
+            Matrix_Translate(tanron2->world.pos.x, D_80BB8450->actor.floorHeight + 2.0f, tanron2->world.pos.z,
                              MTXMODE_NEW);
-                             
-            // @recomp Manual relocation, TODO remove this when the recompiler does it automatically.
-            f32 D_80BB8454_value = *(f32*)actor_relocate(thisx, &D_80BB8454);
-            Matrix_Scale(D_80BB8454_value, 0.0f, D_80BB8454_value, MTXMODE_APPLY);
+            Matrix_Scale(D_80BB8454, 0.0f, D_80BB8454, MTXMODE_APPLY);
 
             // @recomp Tag the transform.
             gEXMatrixGroupSimple(POLY_XLU_DISP++, actor_transform_id(tanron2) + 2,
@@ -162,7 +156,7 @@ void EnTanron2_Draw(Actor* thisx, PlayState* play2) {
 }
 
 // @recomp Track this effect's reset state.
-void Boss03_SpawnEffectWetSpot(PlayState* play, Vec3f* pos) {
+RECOMP_PATCH void Boss03_SpawnEffectWetSpot(PlayState* play, Vec3f* pos) {
     s16 i;
     GyorgEffect* eff = play->specialEffects;
 
@@ -186,7 +180,7 @@ void Boss03_SpawnEffectWetSpot(PlayState* play, Vec3f* pos) {
 }
 
 // @recomp Track this effect's reset state.
-void Boss03_SpawnEffectDroplet(PlayState* play, Vec3f* pos) {
+RECOMP_PATCH void Boss03_SpawnEffectDroplet(PlayState* play, Vec3f* pos) {
     s16 i;
     GyorgEffect* eff = play->specialEffects;
 
@@ -213,7 +207,7 @@ void Boss03_SpawnEffectDroplet(PlayState* play, Vec3f* pos) {
 }
 
 // @recomp Track this effect's reset state.
-void Boss03_SpawnEffectSplash(PlayState* play, Vec3f* pos, Vec3f* velocity) {
+RECOMP_PATCH void Boss03_SpawnEffectSplash(PlayState* play, Vec3f* pos, Vec3f* velocity) {
     Vec3f accel = { 0.0f, -1.0f, 0.0f };
     f32 temp_f2;
     GyorgEffect* eff = play->specialEffects;
@@ -240,7 +234,7 @@ void Boss03_SpawnEffectSplash(PlayState* play, Vec3f* pos, Vec3f* velocity) {
 }
 
 // @recomp Track this effect's reset state.
-void Boss03_SpawnEffectBubble(PlayState* play, Vec3f* pos) {
+RECOMP_PATCH void Boss03_SpawnEffectBubble(PlayState* play, Vec3f* pos) {
     s16 i;
     GyorgEffect* eff = play->specialEffects;
 
@@ -270,7 +264,7 @@ extern u8 gEffDust1Tex[];
 void Boss03_SetObject(PlayState* play, s16 objectId);
 
 // @recomp Tag Gyorg's effects.
-void Boss03_DrawEffects(PlayState* play) {
+RECOMP_PATCH void Boss03_DrawEffects(PlayState* play) {
     u8 flag = false;
     s16 i;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -419,7 +413,7 @@ extern Gfx object_water_effect_DL_000420[];
 extern Gfx object_water_effect_DL_000A48[];
 extern Gfx object_water_effect_DL_000CD8[];
 
-void func_80A5A6B8(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void func_80A5A6B8(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     EnWaterEffect* this = (EnWaterEffect*)thisx;
     EnWaterEffectStruct* ptr = &this->unk_144[0];
@@ -556,7 +550,7 @@ void func_80A5A6B8(Actor* thisx, PlayState* play2) {
 }
 
 // @recomp Tag normal water effects.
-void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
+RECOMP_PATCH void EnWaterEffect_Draw(Actor* thisx, PlayState* play2) {
     PlayState* play = play2;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     EnWaterEffect* this = (EnWaterEffect*)thisx;
@@ -650,7 +644,7 @@ extern Gfx gGohtStalactiteMaterialDL[];
 extern Gfx gGohtStalactiteModelDL[];
 
 // @recomp Tag Goht's rocks.
-void func_80B0C398(BossHakugin* this, PlayState* play) {
+RECOMP_PATCH void func_80B0C398(BossHakugin* this, PlayState* play) {
     BossHakuginEffect* effect;
     s32 i;
 
@@ -731,21 +725,16 @@ void EnOsn_HandleCsAction(EnOsn* this, PlayState* play);
 void EnOsn_Idle(EnOsn* this, PlayState* play);
 
 // @recomp Patched to skip interpolation when the Happy Mask Salesman changes animations.
-void EnOsn_ChooseAction(EnOsn* this, PlayState* play) {
-    // @recomp Manually relocate the static symbol.
-    AnimationInfo* sAnimationInfo = (AnimationInfo*)actor_relocate(&this->actor, sHappyMaskSalesmanAnimationInfo);
-
+RECOMP_PATCH void EnOsn_ChooseAction(EnOsn* this, PlayState* play) {
     u32 isSwitchFlagSet = Flags_GetSwitch(play, 0);
 
     this->csId = this->actor.csId;
 
-    Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, OSN_ANIM_IDLE);
+    Actor_ChangeAnimationByInfo(&this->skelAnime, sHappyMaskSalesmanAnimationInfo, OSN_ANIM_IDLE);
     if (!isSwitchFlagSet) {
-        // @recomp No need to relocate as this function is replaced, so the patch compilation will pick the new address.
         this->actionFunc = EnOsn_HandleCsAction;
     } else {
-        // @recomp Manual relocation, TODO remove when automated by the recompiler.
-        this->actionFunc = (EnOsnActionFunc)actor_relocate(&this->actor, EnOsn_Idle);
+        this->actionFunc = EnOsn_Idle;
     }
     
     // @recomp Skip interpolation this frame.
@@ -757,7 +746,7 @@ void EnOsn_LookFromMask(EnOsn* this);
 void EnOsn_FadeOut(EnOsn* this);
 
 // @recomp Patched to skip interpolation when the Happy Mask Salesman changes animations.
-void EnOsn_HandleCsAction(EnOsn* this, PlayState* play) {
+RECOMP_PATCH void EnOsn_HandleCsAction(EnOsn* this, PlayState* play) {
     u8 pad;
     s32 cueChannel;
 
@@ -854,11 +843,8 @@ void EnOsn_HandleCsAction(EnOsn* this, PlayState* play) {
                 default:
                     this->animIndex = OSN_ANIM_IDLE;
                     break;
-            }
-            // @recomp Manually relocate the static symbol.
-            AnimationInfo* sAnimationInfo = (AnimationInfo*)actor_relocate(&this->actor, sHappyMaskSalesmanAnimationInfo);
-            
-            Actor_ChangeAnimationByInfo(&this->skelAnime, sAnimationInfo, this->animIndex);
+            }            
+            Actor_ChangeAnimationByInfo(&this->skelAnime, sHappyMaskSalesmanAnimationInfo, this->animIndex);
 
             // @recomp Skip interpolation this frame.
             actor_set_interpolation_skipped(&this->actor);
@@ -897,7 +883,7 @@ void EnOsn_HandleCsAction(EnOsn* this, PlayState* play) {
 }
 
 // @recomp Patched to tag this actor's draws using linear order matching.
-void EnFall2_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void EnFall2_Draw(Actor* thisx, PlayState* play) {
     s32 pad;
     EnFall2* this = (EnFall2*)thisx;
     Mtx* mtx;
@@ -926,7 +912,7 @@ void EnFall2_Draw(Actor* thisx, PlayState* play) {
 }
 
 // @recomp Skip interpolation on item pickups the frame they're collected.
-void func_800A6A40(EnItem00* this, PlayState* play) {
+RECOMP_PATCH void func_800A6A40(EnItem00* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
 
     if (this->getItemId != GI_NONE) {
@@ -969,7 +955,7 @@ extern Vtx ovl_Obj_Entotu_Vtx_000D10[7];
 extern Gfx object_f53_obj_DL_001C00[];
 
 // @recomp Skip rotation interpolation for the Clock Town chimney's smoke when the camera skips interolation.
-void func_80A34B28(ObjEntotu* this, PlayState* play) {
+RECOMP_PATCH void func_80A34B28(ObjEntotu* this, PlayState* play) {
     u8 sp57;
     u8 sp56;
     s32 i;
@@ -981,10 +967,8 @@ void func_80A34B28(ObjEntotu* this, PlayState* play) {
 
     this->unk_1B8.x = CLAMP(this->unk_1B8.x, 0.0f, 1.0f);
 
-    // @recomp Manual relocation, TODO remove when automated.
-    Vtx* verts = (Vtx*)actor_relocate(&this->actor, ovl_Obj_Entotu_Vtx_000D10);
     for (i = 0; i < ARRAY_COUNT(ovl_Obj_Entotu_Vtx_000D10); i++) {
-        this->unk_148[i].v.cn[3] = verts[i].v.cn[3] * this->unk_1B8.x;
+        this->unk_148[i].v.cn[3] = ovl_Obj_Entotu_Vtx_000D10[i].v.cn[3] * this->unk_1B8.x;
     }
 
     if (this->unk_1B8.x > 0.0f) {
@@ -1021,7 +1005,7 @@ void func_80A34B28(ObjEntotu* this, PlayState* play) {
 extern Gfx object_f53_obj_DL_000158[];
 
 // @recomp Skip rotation interpolation for the Clock Town chimney when the camera skips interolation.
-void func_80A34A44(ObjEntotu* this, PlayState* play) {
+RECOMP_PATCH void func_80A34A44(ObjEntotu* this, PlayState* play) {
     Matrix_Translate(this->actor.world.pos.x, this->actor.world.pos.y, this->actor.world.pos.z, MTXMODE_NEW);
     this->actor.shape.rot.y = BINANG_ROT180(Camera_GetCamDirYaw(GET_ACTIVE_CAM(play)));
     Matrix_RotateYS(this->actor.shape.rot.y, MTXMODE_APPLY);
@@ -1051,7 +1035,7 @@ void func_80A34A44(ObjEntotu* this, PlayState* play) {
 void Environment_DrawRainImpl(PlayState* play, View* view, GraphicsContext* gfxCtx);
 
 // @recomp Skip interpolation for the splashes that raindrops make.
-void Environment_DrawRain(PlayState* play, View* view, GraphicsContext* gfxCtx) {
+RECOMP_PATCH void Environment_DrawRain(PlayState* play, View* view, GraphicsContext* gfxCtx) {
     if (!(GET_ACTIVE_CAM(play)->stateFlags & CAM_STATE_UNDERWATER) &&
         (play->envCtx.precipitation[PRECIP_SNOW_CUR] == 0)) {
         
@@ -1077,7 +1061,7 @@ void Environment_DrawRain(PlayState* play, View* view, GraphicsContext* gfxCtx) 
 }
 
 // @recomp Skip interpolation on the boulders in the path to Snowhead and the path to Ikana Canyon when they teleport back to their home position.
-void func_8093EE64(EnGoroiwa* this, s32 arg1) {
+RECOMP_PATCH void func_8093EE64(EnGoroiwa* this, s32 arg1) {
     Vec3s* temp_v0 = &this->pathPoints[arg1];
 
     this->actor.world.pos.x = temp_v0->x;
@@ -1094,7 +1078,7 @@ extern Gfx object_twig_DL_001C38[];
 extern Gfx object_twig_DL_0014C8[];
 
 // @recomp Skip interpolation on the rotation for the beaver race rings in order to retain the intended animation look.
-void EnTwig_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void EnTwig_Draw(Actor* thisx, PlayState* play) {
     EnTwig* this = (EnTwig*)thisx;
 
     switch (this->unk_160) {
@@ -1120,7 +1104,7 @@ extern Gfx gEffFire1DL[];
 #define HONOTRAP_EXTRA_BYTE_1(flameGroup) (&(flameGroup)->flameList[0].isDrawn)[1]
 #define HONOTRAP_EXTRA_BYTE_2(flameGroup) (&(flameGroup)->flameList[1].isDrawn)[1]
 
-void EnHonotrap_FlameGroup(EnHonotrap* this, PlayState* play) {
+RECOMP_PATCH void EnHonotrap_FlameGroup(EnHonotrap* this, PlayState* play) {
     s32 i;
     EnHonotrapFlameGroup* flameGroup = &this->flameGroup;
     f32 var_fs0;
@@ -1222,7 +1206,7 @@ void EnHonotrap_FlameGroup(EnHonotrap* this, PlayState* play) {
 
 
 // @recomp Patched to tag the flames that come out of fire eyes.
-void EnHonotrap_DrawFlameGroup(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void EnHonotrap_DrawFlameGroup(Actor* thisx, PlayState* play) {
     s32 pad;
     EnHonotrap* this = (EnHonotrap*)thisx;
     EnHonotrapFlameElement* flameElem;
@@ -1273,6 +1257,228 @@ void EnHonotrap_DrawFlameGroup(Actor* thisx, PlayState* play) {
             gSPDisplayList(POLY_XLU_DISP++, gEffFire1DL);
             // @recomp Pop the matrix group.
             gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
+        }
+    }
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+extern Gfx ovl_En_Tanron1_DL_001428[];
+extern Gfx ovl_En_Tanron1_DL_001888[];
+extern Gfx ovl_En_Tanron1_DL_001900[];
+
+// @recomp Patched to interpolate the moths that circle torches.
+RECOMP_PATCH void func_80BB5AAC(EnTanron1* this, PlayState* play) {
+    EnTanron1Struct* ptrBase = &this->unk_160[0];
+    s16 i;
+    u8 flag = 0;
+    EnTanron1Struct* ptr = ptrBase;
+
+    // @recomp Get actor transform id
+    u32 cur_transform_id = actor_transform_id(&this->actor);
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    Gfx_SetupDL25_Opa(play->state.gfxCtx);
+
+    for (i = 0; i < this->actor.params; i++, ptr++) {
+        if (ptr->unk_24 == 1) {
+            if (!flag) {
+                gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
+                flag++;
+            }
+            Matrix_Translate(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_NEW);
+            Matrix_RotateYS(ptr->unk_1A, MTXMODE_APPLY);
+            Matrix_RotateXS(ptr->unk_18 * -1, MTXMODE_APPLY);
+            Matrix_Scale(1.2f, ptr->unk_2C, 1.2f, MTXMODE_APPLY);
+
+            // @recomp Write matrix group for POLY_OPA
+            gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, cur_transform_id + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_ALLOW);
+
+            gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
+
+            // @recomp Pop matrix group
+            gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+        }
+    }
+
+    flag = 0;
+    ptr = ptrBase;
+    for (i = 0; i < this->actor.params; i++, ptr++) {
+        if (ptr->unk_24 == 2) {
+            if (!flag) {
+                gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001888);
+                gDPLoadTextureBlock(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001428, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 32, 0,
+                                    G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 4, 5, G_TX_NOLOD,
+                                    G_TX_NOLOD);
+                flag++;
+            }
+
+            Matrix_Translate(ptr->unk_00.x, ptr->unk_00.y, ptr->unk_00.z, MTXMODE_NEW);
+            Matrix_RotateYS(ptr->unk_1A, MTXMODE_APPLY);
+            Matrix_RotateXS(ptr->unk_18 * -1, MTXMODE_APPLY);
+            Matrix_Scale(1.0f, ptr->unk_2C, 1.0f, MTXMODE_APPLY);
+
+            // @recomp Write matrix group for POLY_OPA
+            gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, cur_transform_id + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_ALLOW);
+
+            gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            gSPDisplayList(POLY_OPA_DISP++, ovl_En_Tanron1_DL_001900);
+
+            // @recomp Pop matrix group
+            gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+        }
+    }
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+extern Gfx gKakeraLeafTipDL[];
+extern Gfx gKakeraLeafMiddleDL[];
+extern EnKusa2UnkBssStruct D_80A5F1C0;
+
+// Patched to tag the particles that spawn from Keaton grass.
+RECOMP_PATCH void func_80A5E6F0(Actor* thisx, PlayState* play) {
+    static Gfx* D_80A5EB68[] = {
+        gKakeraLeafTipDL,
+        gKakeraLeafMiddleDL,
+    };
+    EnKusa2* this = (EnKusa2*)thisx;
+    s32 i;
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    Gfx_SetupDL25_Opa(play->state.gfxCtx);
+
+    // @recomp Get the base transform ID for this actor.
+    u32 cur_transform_id = actor_transform_id(thisx);
+
+    for (i = 0; i < ARRAY_COUNT(D_80A5F1C0.unk_0480); i++) {
+        EnKusa2UnkBssSubStruct2* s = &D_80A5F1C0.unk_0480[i];
+
+        if (s->unk_2C > 0) {
+            Matrix_SetTranslateRotateYXZ(s->unk_04.x, s->unk_04.y, s->unk_04.z, &s->unk_20);
+            Matrix_Scale(s->unk_00, s->unk_00, s->unk_00, MTXMODE_APPLY);
+
+            // @recomp Create a matrix group for this particle.
+            gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, cur_transform_id + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_ALLOW);
+
+            gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            gSPDisplayList(POLY_OPA_DISP++, D_80A5EB68[i & 1]);
+
+            // @recomp Pop the matrix group.
+            gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+        }
+    }
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+extern Gfx gObjGrass_D_809AA9F0[];
+extern Gfx gObjGrass_D_809AAA68[];
+extern Gfx gObjGrass_D_809AAAE0[];
+void ObjGrass_OverrideMatrixCurrent(MtxF* matrix);
+
+// @recomp Patched to set matrix groups for grass.
+RECOMP_PATCH void ObjGrass_DrawOpa(Actor* thisx, PlayState* play2) {
+    ObjGrass* this = (ObjGrass*)thisx;
+    PlayState* play = play2;
+    Lights* lights;
+    ObjGrassGroup* grassGroup;
+    s32 i;
+    s32 j;
+    Vec3s rot = { 0, 0, 0 };
+    ObjGrassElement* grassElem;
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    Gfx_SetupDL25_Opa(play->state.gfxCtx);
+
+    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
+    gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AA9F0);
+    
+    // @recomp Extract this actor's ID.
+    u32 actor_id = actor_transform_id(thisx);
+
+    for (i = 0; i < this->activeGrassGroups; i++) {
+        grassGroup = &this->grassGroups[i];
+
+        if (grassGroup->flags & OBJ_GRASS_GROUP_DRAW) {
+            lights = LightContext_NewLights(&play->lightCtx, play->state.gfxCtx);
+            Lights_BindAll(lights, play->lightCtx.listHead, &grassGroup->homePos, play);
+            Lights_Draw(lights, play->state.gfxCtx);
+
+            for (j = 0; j < grassGroup->count; j++) {
+                grassElem = &grassGroup->elements[j];
+
+                if ((grassElem->flags & OBJ_GRASS_ELEM_DRAW) && (grassElem->alpha == 255)) {
+                    rot.y = grassElem->rotY;
+                    Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
+                    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+                    if (grassElem->flags & OBJ_GRASS_ELEM_ANIM) {
+                        ObjGrass_OverrideMatrixCurrent(&this->distortionMtx[j]);
+                    }
+
+                    // @recomp Push a matrix group.
+                    gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, actor_id + i * OBJ_GRASS_GROUP_ELEM_COUNT_MAX + j, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
+
+                    gSPMatrix(POLY_OPA_DISP++, Matrix_NewMtx(play->state.gfxCtx),
+                              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+                    gSPDisplayList(POLY_OPA_DISP++, gObjGrass_D_809AAAE0);
+
+                    // @recomp Pop the matrix group.
+                    gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+                }
+            }
+        }
+    }
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+// @recomp Patched to set matrix groups for grass.
+RECOMP_PATCH void ObjGrass_DrawXlu(Actor* thisx, PlayState* play) {
+    ObjGrass* this = (ObjGrass*)thisx;
+    ObjGrassGroup* grassGroup;
+    ObjGrassElement* grassElem;
+    s32 i;
+    s32 j;
+    Vec3s rot = { 0, 0, 0 };
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    Gfx_SetupDL25_Xlu(play->state.gfxCtx);
+
+    gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAA68);
+    
+    // @recomp Extract this actor's ID.
+    u32 actor_id = actor_transform_id(thisx);
+
+    for (i = 0; i < this->activeGrassGroups; i++) {
+        grassGroup = &this->grassGroups[i];
+
+        if (grassGroup->flags & OBJ_GRASS_GROUP_DRAW) {
+            for (j = 0; j < grassGroup->count; j++) {
+                grassElem = &grassGroup->elements[j];
+
+                if ((grassElem->flags & OBJ_GRASS_ELEM_DRAW) && (grassElem->alpha > 0) && (grassElem->alpha < 255)) {
+                    rot.y = grassElem->rotY;
+                    Matrix_SetTranslateRotateYXZ(grassElem->pos.x, grassElem->pos.y, grassElem->pos.z, &rot);
+                    Matrix_Scale(this->actor.scale.x, this->actor.scale.y, this->actor.scale.z, MTXMODE_APPLY);
+
+                    // @recomp Push a matrix group.
+                    gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_id + i * OBJ_GRASS_GROUP_ELEM_COUNT_MAX + j, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
+
+                    gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx),
+                              G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+                    gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 255, grassElem->alpha);
+                    gSPDisplayList(POLY_XLU_DISP++, gObjGrass_D_809AAAE0);
+
+                    // @recomp Pop the matrix group.
+                    gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
+                }
+            }
         }
     }
 

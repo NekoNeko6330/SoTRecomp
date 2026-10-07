@@ -6,6 +6,8 @@
 #include "overlays/actors/ovl_Oceff_Wipe5/z_oceff_wipe5.h"
 #include "overlays/actors/ovl_Oceff_Wipe6/z_oceff_wipe6.h"
 #include "overlays/actors/ovl_Oceff_Wipe7/z_oceff_wipe7.h"
+#include "overlays/actors/ovl_Eff_Stk/z_eff_stk.h"
+#include "transform_ids.h"
 
 // @recomp Custom verts to extend the effects past the camera so they cover any aspect ratio.
 Vtx time_override_verts[156] = {
@@ -779,6 +781,204 @@ Gfx healing_override_dl[] = {
 	gsSPEndDisplayList(),
 };
 
+Vtx skull_kid_curse_1_override_verts[52] = { // 008A38
+    {{ {71, 23, 0}, 0, {614, 1024}, {255, 255, 255, 0} }},
+    {{ {121, 88, 500}, 0, {716, 0}, {255, 255, 255, 255} }},
+    {{ {44, 61, 0}, 0, {819, 1024}, {255, 255, 255, 0} }},
+    {{ {46, 143, 500}, 0, {921, 0}, {255, 255, 255, 255} }},
+    {{ {0, 75, 0}, 0, {1024, 1024}, {255, 255, 255, 0} }},
+    {{ {-46, 143, 500}, 0, {1126, 0}, {255, 255, 255, 255} }},
+    {{ {-44, 61, 0}, 0, {1228, 1024}, {255, 255, 255, 0} }},
+    {{ {-121, 88, 500}, 0, {1331, 0}, {255, 255, 255, 255} }},
+    {{ {-71, 23, 0}, 0, {1433, 1024}, {255, 255, 255, 0} }},
+    {{ {-150, 0, 500}, 0, {1536, 0}, {255, 255, 255, 255} }},
+    {{ {-71, -23, 0}, 0, {1638, 1024}, {255, 255, 255, 0} }},
+    {{ {-121, -88, 500}, 0, {1740, 0}, {255, 255, 255, 255} }},
+    {{ {-44, -61, 0}, 0, {1843, 1024}, {255, 255, 255, 0} }},
+    {{ {-46, -143, 500}, 0, {1945, 0}, {255, 255, 255, 255} }},
+    {{ {0, -75, 0}, 0, {2048, 1024}, {255, 255, 255, 0} }},
+    {{ {0, -75, 0}, 0, {0, 1024}, {255, 255, 255, 0} }},
+    {{ {46, -143, 500}, 0, {102, 0}, {255, 255, 255, 255} }},
+    {{ {44, -61, 0}, 0, {204, 1024}, {255, 255, 255, 0} }},
+    {{ {121, -88, 500}, 0, {307, 0}, {255, 255, 255, 255} }},
+    {{ {71, -23, 0}, 0, {409, 1024}, {255, 255, 255, 0} }},
+    {{ {150, 0, 500}, 0, {512, 0}, {255, 255, 255, 255} }},
+    {{ {248, 0, 1080}, 0, {580, -1192}, {255, 255, 255, 255} }},
+    {{ {200, 146, 1080}, 0, {782, -1192}, {255, 255, 255, 255} }},
+    {{ {200, 146, 1080}, 0, {782, -1192}, {255, 255, 255, 255} }},
+    {{ {76, 237, 1080}, 0, {989, -1192}, {255, 255, 255, 255} }},
+    {{ {76, 237, 1080}, 0, {988, -1192}, {255, 255, 255, 255} }},
+    {{ {-76, 237, 1080}, 0, {1193, -1192}, {255, 255, 255, 255} }},
+    {{ {-76, 237, 1080}, 0, {1194, -1192}, {255, 255, 255, 255} }},
+    {{ {-200, 146, 1080}, 0, {1397, -1192}, {255, 255, 255, 255} }},
+    {{ {-200, 146, 1080}, 0, {1397, -1192}, {255, 255, 255, 255} }},
+    {{ {-248, 0, 1080}, 0, {1604, -1192}, {255, 255, 255, 255} }},
+    {{ {-248, 0, 1080}, 0, {1604, -1192}, {255, 255, 255, 255} }},
+    {{ {-121, -88, 500}, 0, {1740, 0}, {255, 255, 255, 255} }},
+    {{ {-248, 0, 1080}, 0, {1604, -1192}, {255, 255, 255, 255} }},
+    {{ {-200, -146, 1080}, 0, {1806, -1192}, {255, 255, 255, 255} }},
+    {{ {-44, -61, 0}, 0, {1843, 1024}, {255, 255, 255, 0} }},
+    {{ {-46, -143, 500}, 0, {1945, 0}, {255, 255, 255, 255} }},
+    {{ {-200, -146, 1080}, 0, {1806, -1192}, {255, 255, 255, 255} }},
+    {{ {-76, -237, 1080}, 0, {2013, -1192}, {255, 255, 255, 255} }},
+    {{ {0, -75, 0}, 0, {2048, 1024}, {255, 255, 255, 0} }},
+    {{ {46, -143, 500}, 0, {2150, 0}, {255, 255, 255, 255} }},
+    {{ {-76, -237, 1080}, 0, {2012, -1192}, {255, 255, 255, 255} }},
+    {{ {76, -237, 1080}, 0, {2217, -1192}, {255, 255, 255, 255} }},
+    {{ {44, -61, 0}, 0, {204, 1024}, {255, 255, 255, 0} }},
+    {{ {46, -143, 500}, 0, {102, 0}, {255, 255, 255, 255} }},
+    {{ {121, -88, 500}, 0, {307, 0}, {255, 255, 255, 255} }},
+    {{ {76, -237, 1080}, 0, {170, -1192}, {255, 255, 255, 255} }},
+    {{ {200, -146, 1080}, 0, {373, -1192}, {255, 255, 255, 255} }},
+    {{ {71, -23, 0}, 0, {409, 1024}, {255, 255, 255, 0} }},
+    {{ {150, 0, 500}, 0, {512, 0}, {255, 255, 255, 255} }},
+    {{ {200, -146, 1080}, 0, {373, -1192}, {255, 255, 255, 255} }},
+    {{ {248, 0, 1080}, 0, {580, -1192}, {255, 255, 255, 255} }},
+};
+
+extern u64 object_stk2_Tex_008B50[];
+extern u64 object_stk2_Tex_008B50[];
+
+
+Gfx skull_kid_curse_1_override_dl[] = { // 008A38
+    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+    gsDPPipeSync(),
+    gsDPSetCombineLERP(TEXEL1, PRIMITIVE, PRIM_LOD_FRAC, TEXEL0, TEXEL1, 0, PRIM_LOD_FRAC, TEXEL0, PRIMITIVE,
+                       ENVIRONMENT, COMBINED, ENVIRONMENT, COMBINED, 0, SHADE, 0),
+    gsDPSetPrimColor(0, 0x80, 255, 255, 100, 255),
+    gsDPSetEnvColor(255, 0, 150, 255),
+    gsDPSetRenderMode(G_RM_PASS, G_RM_ZB_XLU_SURF2),
+    gsDPSetTextureLUT(G_TT_NONE),
+    gsDPLoadTextureBlock(object_stk2_Tex_008B50, G_IM_FMT_I, G_IM_SIZ_8b, 32, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                         G_TX_NOMIRROR | G_TX_WRAP, 5, 6, 1, 15),
+    gsDPLoadMultiBlock(object_stk2_Tex_008B50, 0x0000, 1, G_IM_FMT_I, G_IM_SIZ_8b, 32, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                       G_TX_NOMIRROR | G_TX_WRAP, 5, 6, 15, 14),
+    gsSPDisplayList(0x08000000),
+    gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH),
+    gsSPVertex(skull_kid_curse_1_override_verts + 0, 32, 0),
+    gsSP2Triangles(0, 1, 2, 0, 2, 3, 4, 0),
+    gsSP2Triangles(4, 5, 6, 0, 6, 7, 8, 0),
+    gsSP2Triangles(8, 9, 10, 0, 10, 11, 12, 0),
+    gsSP2Triangles(12, 13, 14, 0, 15, 16, 17, 0),
+    gsSP2Triangles(17, 18, 19, 0, 19, 20, 0, 0),
+    gsSP2Triangles(0, 20, 1, 0, 1, 20, 21, 0),
+    gsSP2Triangles(1, 21, 22, 0, 2, 1, 3, 0),
+    gsSP2Triangles(3, 1, 23, 0, 3, 23, 24, 0),
+    gsSP2Triangles(4, 3, 5, 0, 5, 3, 25, 0),
+    gsSP2Triangles(5, 25, 26, 0, 6, 5, 7, 0),
+    gsSP2Triangles(7, 5, 27, 0, 7, 27, 28, 0),
+    gsSP2Triangles(8, 7, 9, 0, 9, 7, 29, 0),
+    gsSP2Triangles(9, 29, 30, 0, 10, 9, 11, 0),
+    gsSP1Triangle(11, 9, 31, 0),
+    gsSPVertex(skull_kid_curse_1_override_verts + 32, 20, 0),
+    gsSP2Triangles(0, 1, 2, 0, 3, 0, 4, 0),
+    gsSP2Triangles(4, 0, 5, 0, 4, 5, 6, 0),
+    gsSP2Triangles(7, 4, 8, 0, 8, 4, 9, 0),
+    gsSP2Triangles(8, 9, 10, 0, 11, 12, 13, 0),
+    gsSP2Triangles(13, 12, 14, 0, 13, 14, 15, 0),
+    gsSP2Triangles(16, 13, 17, 0, 17, 13, 18, 0),
+    gsSP1Triangle(17, 18, 19, 0),
+    gsSPEndDisplayList(),
+};
+
+Vtx skull_kid_curse_2_override_verts[52] = { // 008920
+    {{ {86, -28, 0}, 0, {409, 1024}, {255, 255, 255, 0} }},
+    {{ {180, 0, 500}, 0, {512, 0}, {255, 255, 255, 255} }},
+    {{ {86, 28, 0}, 0, {614, 1024}, {255, 255, 255, 0} }},
+    {{ {53, -73, 0}, 0, {204, 1024}, {255, 255, 255, 0} }},
+    {{ {146, -106, 500}, 0, {307, 0}, {255, 255, 255, 255} }},
+    {{ {0, -90, 0}, 0, {0, 1024}, {255, 255, 255, 0} }},
+    {{ {56, -171, 500}, 0, {102, 0}, {255, 255, 255, 255} }},
+    {{ {-53, -73, 0}, 0, {1843, 1024}, {255, 255, 255, 0} }},
+    {{ {-56, -171, 500}, 0, {1945, 0}, {255, 255, 255, 255} }},
+    {{ {0, -90, 0}, 0, {2048, 1024}, {255, 255, 255, 0} }},
+    {{ {-86, -28, 0}, 0, {1638, 1024}, {255, 255, 255, 0} }},
+    {{ {-146, -106, 500}, 0, {1740, 0}, {255, 255, 255, 255} }},
+    {{ {-86, 28, 0}, 0, {1433, 1024}, {255, 255, 255, 0} }},
+    {{ {-180, 0, 500}, 0, {1536, 0}, {255, 255, 255, 255} }},
+    {{ {-53, 73, 0}, 0, {1228, 1024}, {255, 255, 255, 0} }},
+    {{ {-146, 106, 500}, 0, {1331, 0}, {255, 255, 255, 255} }},
+    {{ {0, 90, 0}, 0, {1024, 1024}, {255, 255, 255, 0} }},
+    {{ {-56, 171, 500}, 0, {1126, 0}, {255, 255, 255, 255} }},
+    {{ {53, 73, 0}, 0, {819, 1024}, {255, 255, 255, 0} }},
+    {{ {56, 171, 500}, 0, {921, 0}, {255, 255, 255, 255} }},
+    {{ {146, 106, 500}, 0, {716, 0}, {255, 255, 255, 255} }},
+    {{ {218, -159, 1080}, 0, {359, -1185}, {255, 255, 255, 255} }},
+    {{ {269, 0, 1080}, 0, {562, -1185}, {255, 255, 255, 255} }},
+    {{ {84, -256, 1080}, 0, {152, -1185}, {255, 255, 255, 255} }},
+    {{ {218, -159, 1080}, 0, {359, -1185}, {255, 255, 255, 255} }},
+    {{ {56, -171, 500}, 0, {2150, 0}, {255, 255, 255, 255} }},
+    {{ {-84, -256, 1080}, 0, {1996, -1185}, {255, 255, 255, 255} }},
+    {{ {84, -256, 1080}, 0, {2201, -1185}, {255, 255, 255, 255} }},
+    {{ {-218, -159, 1080}, 0, {1792, -1185}, {255, 255, 255, 255} }},
+    {{ {-84, -256, 1080}, 0, {1995, -1185}, {255, 255, 255, 255} }},
+    {{ {-269, 0, 1080}, 0, {1586, -1185}, {255, 255, 255, 255} }},
+    {{ {-218, -159, 1080}, 0, {1791, -1185}, {255, 255, 255, 255} }},
+    {{ {-180, 0, 500}, 0, {1536, 0}, {255, 255, 255, 255} }},
+    {{ {-146, 106, 500}, 0, {1331, 0}, {255, 255, 255, 255} }},
+    {{ {-218, 159, 1080}, 0, {1383, -1185}, {255, 255, 255, 255} }},
+    {{ {-269, 0, 1080}, 0, {1586, -1185}, {255, 255, 255, 255} }},
+    {{ {-53, 73, 0}, 0, {1228, 1024}, {255, 255, 255, 0} }},
+    {{ {-56, 171, 500}, 0, {1126, 0}, {255, 255, 255, 255} }},
+    {{ {-84, 256, 1080}, 0, {1176, -1185}, {255, 255, 255, 255} }},
+    {{ {-218, 159, 1080}, 0, {1383, -1185}, {255, 255, 255, 255} }},
+    {{ {0, 90, 0}, 0, {1024, 1024}, {255, 255, 255, 0} }},
+    {{ {56, 171, 500}, 0, {921, 0}, {255, 255, 255, 255} }},
+    {{ {84, 256, 1080}, 0, {972, -1185}, {255, 255, 255, 255} }},
+    {{ {-84, 256, 1080}, 0, {1177, -1185}, {255, 255, 255, 255} }},
+    {{ {53, 73, 0}, 0, {819, 1024}, {255, 255, 255, 0} }},
+    {{ {146, 106, 500}, 0, {716, 0}, {255, 255, 255, 255} }},
+    {{ {218, 159, 1080}, 0, {768, -1185}, {255, 255, 255, 255} }},
+    {{ {84, 256, 1080}, 0, {971, -1185}, {255, 255, 255, 255} }},
+    {{ {86, 28, 0}, 0, {614, 1024}, {255, 255, 255, 0} }},
+    {{ {180, 0, 500}, 0, {512, 0}, {255, 255, 255, 255} }},
+    {{ {269, 0, 1080}, 0, {562, -1185}, {255, 255, 255, 255} }},
+    {{ {218, 159, 1080}, 0, {767, -1185}, {255, 255, 255, 255} }},
+};
+
+extern u64 object_stk2_Tex_009750[];
+extern u64 object_stk2_Tex_009350[];
+
+Gfx skull_kid_curse_2_override_dl[] = { // 008920
+    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+    gsDPPipeSync(),
+    gsDPSetCombineLERP(TEXEL1, PRIMITIVE, PRIM_LOD_FRAC, TEXEL0, TEXEL1, 0, PRIM_LOD_FRAC, TEXEL0, PRIMITIVE,
+                        ENVIRONMENT, COMBINED, ENVIRONMENT, COMBINED, 0, SHADE, 0),
+    gsDPSetPrimColor(0, 0x80, 0, 0, 255, 255),
+    gsDPSetEnvColor(0, 220, 0, 255),
+    gsDPSetRenderMode(G_RM_PASS, G_RM_AA_ZB_XLU_INTER2),
+    gsDPSetTextureLUT(G_TT_NONE),
+    gsDPLoadTextureBlock(object_stk2_Tex_009750, G_IM_FMT_I, G_IM_SIZ_8b, 32, 64, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                            G_TX_MIRROR | G_TX_WRAP, 5, 6, 15, 14),
+    gsDPLoadMultiBlock(object_stk2_Tex_009350, 0x0100, 1, G_IM_FMT_I, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                        G_TX_NOMIRROR | G_TX_WRAP, 5, 5, 15, 1),
+    gsSPDisplayList(0x09000000),
+    gsSPLoadGeometryMode(G_ZBUFFER | G_SHADE | G_CULL_BACK | G_SHADING_SMOOTH),
+    gsSPVertex(skull_kid_curse_2_override_verts + 0, 32, 0),
+    gsSP2Triangles(0, 1, 2, 0, 3, 4, 0, 0),
+    gsSP2Triangles(5, 6, 3, 0, 7, 8, 9, 0),
+    gsSP2Triangles(10, 11, 7, 0, 12, 13, 10, 0),
+    gsSP2Triangles(14, 15, 12, 0, 16, 17, 14, 0),
+    gsSP2Triangles(18, 19, 16, 0, 2, 20, 18, 0),
+    gsSP2Triangles(0, 4, 1, 0, 1, 4, 21, 0),
+    gsSP2Triangles(1, 21, 22, 0, 3, 6, 4, 0),
+    gsSP2Triangles(4, 6, 23, 0, 4, 23, 24, 0),
+    gsSP2Triangles(9, 8, 25, 0, 25, 8, 26, 0),
+    gsSP2Triangles(25, 26, 27, 0, 7, 11, 8, 0),
+    gsSP2Triangles(8, 11, 28, 0, 8, 28, 29, 0),
+    gsSP2Triangles(10, 13, 11, 0, 11, 13, 30, 0),
+    gsSP2Triangles(11, 30, 31, 0, 12, 15, 13, 0),
+    gsSPVertex(skull_kid_curse_2_override_verts + 32, 20, 0),
+    gsSP2Triangles(0, 1, 2, 0, 0, 2, 3, 0),
+    gsSP2Triangles(4, 5, 1, 0, 1, 5, 6, 0),
+    gsSP2Triangles(1, 6, 7, 0, 8, 9, 5, 0),
+    gsSP2Triangles(5, 9, 10, 0, 5, 10, 11, 0),
+    gsSP2Triangles(12, 13, 9, 0, 9, 13, 14, 0),
+    gsSP2Triangles(9, 14, 15, 0, 16, 17, 13, 0),
+    gsSP2Triangles(13, 17, 18, 0, 13, 18, 19, 0),
+    gsSPEndDisplayList(),
+};
+
 // Sets the flag to 1 for any vertex that has an alpha of 255.
 void set_vertex_flags(Vtx* verts, s32 count) {
     for (s32 i = 0; i < count; i++) {
@@ -810,14 +1010,12 @@ void set_all_vertex_flags() {
 
 // Patches the given DL to replace a vertex command at the given position with a branch to the new DL.
 void patch_ocarina_effect(Actor* actor, Gfx* original_dl, u32 dl_offset, Gfx* override_dl) {
-    Gfx* reloc_dl = (Gfx*)actor_relocate(actor, original_dl);
-
     set_all_vertex_flags();
 
     // Check if the DL hasn't been patched yet.
-    if (reloc_dl[dl_offset].words.w0 >> 24 == G_VTX) {
+    if (original_dl[dl_offset].words.w0 >> 24 == G_VTX) {
         // Redirect the DL away from the original vertex command and to the override DL.
-        gSPBranchList(&reloc_dl[dl_offset], override_dl);
+        gSPBranchList(&original_dl[dl_offset], override_dl);
     }
 }
 
@@ -832,7 +1030,7 @@ void set_ocarina_vertex_alphas(Vtx* verts, s32 count, u8 alpha) {
 
 extern Gfx sSongOfTimeFrustumMaterialDL[];
 
-void OceffWipe_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFF;
     OceffWipe* this = (OceffWipe*)thisx;
     f32 z;
@@ -889,8 +1087,7 @@ void OceffWipe_Draw(Actor* thisx, PlayState* play) {
         gDPSetEnvColor(POLY_XLU_DISP++, 100, 0, 255, 128);
     }
 
-    // @recomp Manual relocation, TODO remove when automated.
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, &sSongOfTimeFrustumMaterialDL));
+    gSPDisplayList(POLY_XLU_DISP++, sSongOfTimeFrustumMaterialDL);
     gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, 0 - scroll, scroll * -2, 32,
                                                      32, 1, 0 - scroll, scroll * -2, 32, 32));
     // @recomp Use the new DL instead of the original.
@@ -901,7 +1098,7 @@ void OceffWipe_Draw(Actor* thisx, PlayState* play) {
 
 extern Gfx sEponaSongFrustumMaterialDL[];
 
-void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFF;
     OceffWipe2* this = (OceffWipe2*)thisx;
     f32 z;
@@ -944,8 +1141,7 @@ void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 255, 100, 0, 128);
-    // @recomp Manual relocation, TODO remove when automated.
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, sEponaSongFrustumMaterialDL));
+    gSPDisplayList(POLY_XLU_DISP++, sEponaSongFrustumMaterialDL);
     gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 6, scroll * -6, 64,
                                                      64, 1, scroll * -6, 0, 64, 64));
     // @recomp Use the new DL instead of the original.
@@ -956,7 +1152,7 @@ void OceffWipe2_Draw(Actor* thisx, PlayState* play) {
 
 extern Gfx sSariaSongFrustrumMaterialDL[];
 
-void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFFF;
     OceffWipe3* this = (OceffWipe3*)thisx;
     f32 z;
@@ -998,8 +1194,7 @@ void OceffWipe3_Draw(Actor* thisx, PlayState* play) {
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 255, 255, 170, 255);
     gDPSetEnvColor(POLY_XLU_DISP++, 100, 200, 0, 128);
-    // @recomp Manual relocation, TODO remove when automated.
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, &sSariaSongFrustrumMaterialDL));
+    gSPDisplayList(POLY_XLU_DISP++, sSariaSongFrustrumMaterialDL);
     gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, 0, scroll * 12, scroll * -12, 64, 64, 1,
                                                      scroll * 8, scroll * -8, 64, 64));
     // @recomp Use the new DL instead of the original.
@@ -1012,7 +1207,7 @@ extern Gfx sScarecrowSongUnusedMaterialDL[];
 extern Gfx sScarecrowSongMaterialDL[];
 extern Gfx sScarecrowSongModelDL[];
 
-void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
     u32 scroll = play->state.frames & 0xFFF;
     OceffWipe4* this = (OceffWipe4*)thisx;
     f32 z;
@@ -1053,17 +1248,16 @@ void OceffWipe4_Draw(Actor* thisx, PlayState* play) {
 
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-    // @recomp Manual relocations, TODO remove when automated.
     if (this->actor.params == OCEFF_WIPE4_UNUSED) {
-        gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, sScarecrowSongUnusedMaterialDL));
+        gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongUnusedMaterialDL);
     } else {
-        gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, sScarecrowSongMaterialDL));
+        gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongMaterialDL);
     }
 
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, sScarecrowSongModelDL));
+    gSPDisplayList(POLY_XLU_DISP++, sScarecrowSongModelDL);
     gSPDisplayList(POLY_XLU_DISP++, Gfx_TwoTexScroll(play->state.gfxCtx, G_TX_RENDERTILE, scroll * 2, scroll * -2, 32,
                                                      64, 1, scroll * -1, scroll, 32, 32));
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, &sScarecrowSongModelDL[11]));
+    gSPDisplayList(POLY_XLU_DISP++, &sScarecrowSongModelDL[11]);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1079,7 +1273,7 @@ static u8 sEnvColors[] = {
 extern Gfx gOceff5DL[];
 extern AnimatedMaterial gOceff5TexAnim[];
 
-void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
     OceffWipe5* this = (OceffWipe5*)thisx;
     f32 z;
     s32 pad;
@@ -1139,9 +1333,8 @@ void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
     gDPSetEnvColor(POLY_XLU_DISP++, sEnvColors[colorIndex], sEnvColors[colorIndex + 1], sEnvColors[colorIndex + 2],
                    255);
 
-    // @recomp Manual relocations, TODO remove when automated.
-    AnimatedMat_Draw(play, (AnimatedMaterial*)actor_relocate(thisx, gOceff5TexAnim));
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, gOceff5DL));
+    AnimatedMat_Draw(play, gOceff5TexAnim);
+    gSPDisplayList(POLY_XLU_DISP++, gOceff5DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1149,7 +1342,7 @@ void OceffWipe5_Draw(Actor* thisx, PlayState* play) {
 extern Gfx gOceff6DL[];
 extern AnimatedMaterial ovl_Oceff_Wipe6_Matanimheader_000338[];
 
-void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
     OceffWipe6* this = (OceffWipe6*)thisx;
     f32 z;
     u8 alpha;
@@ -1192,9 +1385,8 @@ void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateXS(0x708, MTXMODE_APPLY);
     Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    // @recomp Manual relocations, TODO remove these when automatic.
-    AnimatedMat_Draw(play, (AnimatedMaterial*)actor_relocate(thisx, ovl_Oceff_Wipe6_Matanimheader_000338));
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, gOceff6DL));
+    AnimatedMat_Draw(play, ovl_Oceff_Wipe6_Matanimheader_000338);
+    gSPDisplayList(POLY_XLU_DISP++, gOceff6DL);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -1202,7 +1394,7 @@ void OceffWipe6_Draw(Actor* thisx, PlayState* play) {
 extern Gfx sSongOfHealingEffectFrustumDL[];
 extern AnimatedMaterial sSongofHealingEffectTexAnim[];
 
-void OceffWipe7_Draw(Actor* thisx, PlayState* play) {
+RECOMP_PATCH void OceffWipe7_Draw(Actor* thisx, PlayState* play) {
     OceffWipe7* this = (OceffWipe7*)thisx;
     f32 z;
     u8 alpha;
@@ -1243,9 +1435,53 @@ void OceffWipe7_Draw(Actor* thisx, PlayState* play) {
     Matrix_RotateXS(0x708, MTXMODE_APPLY);
     Matrix_Translate(0.0f, 0.0f, -z, MTXMODE_APPLY);
     gSPMatrix(POLY_XLU_DISP++, Matrix_NewMtx(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    // @recomp Manual relocations, TODO remove when automated.
-    AnimatedMat_Draw(play, (AnimatedMaterial*)actor_relocate(thisx, sSongofHealingEffectTexAnim));
-    gSPDisplayList(POLY_XLU_DISP++, (Gfx*)actor_relocate(thisx, &sSongOfHealingEffectFrustumDL));
+    AnimatedMat_Draw(play, sSongofHealingEffectTexAnim);
+    gSPDisplayList(POLY_XLU_DISP++, sSongOfHealingEffectFrustumDL);
+
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+extern AnimatedMaterial object_stk2_Matanimheader_009F60[];
+
+// @recomp Patch the Skull Kid curse effect as well, which works similarly to the ocarina effects.
+// In this case, the patch also includes effect transform tagging patches.
+RECOMP_PATCH void EffStk_Draw(Actor* thisx, PlayState* play) {
+    EffStk* this = (EffStk*)thisx;
+    s32 pad;
+    Camera* activeCam = GET_ACTIVE_CAM(play);
+    Vec3f eye = activeCam->eye;
+    Vec3f quakeOffset;
+
+    quakeOffset = Camera_GetQuakeOffset(activeCam);
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    Gfx_SetupDL25_Xlu(play->state.gfxCtx);
+    Matrix_Translate(eye.x + quakeOffset.x, eye.y + quakeOffset.y, eye.z + quakeOffset.z, MTXMODE_NEW);
+    Matrix_Scale(0.2f, 0.2f, 0.2f, MTXMODE_APPLY);
+    Matrix_ReplaceRotation(&play->billboardMtxF);
+    Matrix_Translate(0.0f, 0.0f, this->unk148, MTXMODE_APPLY);
+
+    Mtx* mtx = Matrix_NewMtx(play->state.gfxCtx);
+
+    // @recomp Tag the transform. Do not allow edits as this will get edited by the billboard detection and we'll want to skip position during a camera cut too.
+    if (camera_was_skipped()) {
+        gEXMatrixGroupDecomposedSkipPosRot(POLY_XLU_DISP++, actor_transform_id(thisx), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
+    }
+    else {
+        gEXMatrixGroupDecomposedNormal(POLY_XLU_DISP++, actor_transform_id(thisx), G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_NONE);
+    }
+
+    gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    AnimatedMat_DrawAlphaStep(play, Lib_SegmentedToVirtual(object_stk2_Matanimheader_009F60), 1.0f, this->unk144);
+    gDPSetColorDither(POLY_XLU_DISP++, G_CD_NOISE);
+    gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_NOISE);
+    // @recomp Use the new DLs instead of the originals.
+    gSPDisplayList(POLY_XLU_DISP++, skull_kid_curse_2_override_dl);
+    gSPDisplayList(POLY_XLU_DISP++, skull_kid_curse_1_override_dl);
+
+    // @recomp Pop the transform tag.
+    gEXPopMatrixGroup(POLY_XLU_DISP++, G_MTX_MODELVIEW);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

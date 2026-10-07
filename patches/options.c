@@ -40,63 +40,24 @@ extern u64 gFileSelCopyButtonENGTex[];
 extern u64 gFileSelEraseButtonENGTex[];
 extern u64 gFileSelYesButtonENGTex[];
 extern u64 gFileSelQuitButtonENGTex[];
+extern s16 D_80814280[];
+extern s16 sWindowContentColors[];
+extern TexturePtr sFileInfoBoxTextures[];
+extern TexturePtr sTitleLabels[];
+extern TexturePtr sWarningLabels[];
+extern TexturePtr sFileButtonTextures[];
+extern TexturePtr sActionButtonTextures[];
+extern s16 sFileInfoBoxPartWidths[];
+extern s16 sWalletFirstDigit[];
+extern s16 D_80814620[];
+extern s16 D_80814628[];
+extern s16 D_80814630[];
+extern s16 D_80814638[];
+extern s16 D_80814644[];
+extern s16 D_8081464C[];
 
-// TODO extern these when the recompiler handles relocations automatically.
-s16 D_80814280[] = {
-    2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 0, 1, 1, 2, 1, 1, 4, 2, 2, 2, 1, 1, 0, 2, 0, 1, 1, 1, 1, 1, 0,
-    1, 1, 1, 2, 2, 2, 2, 2, 3, 2, 2, 4, 3, 2, 4, 1, 2, 2, 1, 1, 2, 2, 3, 2, 2, 0, 2, 2, 2, 0, 3, 1, 0,
-};
-
-s16 sWindowContentColors[] = { 100, 150, 255 };
-
-TexturePtr sFileInfoBoxTextures[] = {
-    gFileSelFileInfoBox0Tex, gFileSelFileInfoBox1Tex,      gFileSelFileInfoBox2Tex,      gFileSelFileInfoBox3Tex,
-    gFileSelFileInfoBox4Tex, gFileSelFileExtraInfoBox0Tex, gFileSelFileExtraInfoBox1Tex,
-};
-
-TexturePtr sTitleLabels[] = {
-    gFileSelPleaseSelectAFileENGTex, gFileSelOpenThisFileENGTex,    gFileSelCopyWhichFileENGTex,
-    gFileSelCopyToWhichFileENGTex,   gFileSelAreYouSureCopyENGTex,  gFileSelFileCopiedENGTex,
-    gFileSelEraseWhichFileENGTex,    gFileSelAreYouSureEraseENGTex, gFileSelFileErasedENGTex,
-};
-
-TexturePtr sWarningLabels[] = {
-    gFileSelNoFileToCopyENGTex, gFileSelNoFileToEraseENGTex, gFileSelNoEmptyFileENGTex,
-    gFileSelFileEmptyENGTex,    gFileSelFileInUseENGTex,
-};
-
-TexturePtr sFileButtonTextures[] = {
-    gFileSelFile1ButtonENGTex,
-    gFileSelFile2ButtonENGTex,
-    gFileSelFile3ButtonENGTex,
-};
-
-TexturePtr sActionButtonTextures[] = {
-    gFileSelCopyButtonENGTex,
-    gFileSelEraseButtonENGTex,
-    gFileSelYesButtonENGTex,
-    gFileSelQuitButtonENGTex,
-};
-
-s16 sFileInfoBoxPartWidths[] = {
-    36, 36, 36, 36, 24, 28, 28,
-};
-
-s16 sWalletFirstDigit[] = {
-    1, // tens (Default Wallet)
-    0, // hundreds (Adult Wallet)
-    0, // hundreds (Giant Wallet)
-};
-
-s16 D_80814620[] = { 8, 8, 8, 0 };
-s16 D_80814628[] = { 12, 12, 12, 0 };
-s16 D_80814630[] = { 12, 12, 12, 0 };
-s16 D_80814638[] = {
-    88, 104, 120, 940, 944, 948,
-};
-s16 D_80814644[] = { 88, 104, 120, 944 };
-s16 D_8081464C[] = { 940, 944 };
-s16 D_80814650[] = { 940, 944, 948 };
+// @recomp Added a third position for the rewind button.
+s16 D_80814650_patched[] = { 940, 944, 948 };
 
 void FileSelect_Main(GameState* thisx);
 void FileSelect_InitContext(GameState* thisx);
@@ -104,11 +65,11 @@ void FileSelect_DrawFileInfo(GameState *thisx, s16 fileIndex);
 void FileSelect_SplitNumber(u16 value, u16 *hundreds, u16 *tens, u16 *ones);
 
 // @recomp The options button is now the quit button, so close recomp instead of opening the options.
-void FileSelect_RotateToOptions(GameState* thisx) {
+RECOMP_PATCH void FileSelect_RotateToOptions(GameState* thisx) {
     recomp_exit();
 }
 
-void FileSelect_Init(GameState* thisx) {
+RECOMP_PATCH void FileSelect_Init(GameState* thisx) {
     s32 pad;
     FileSelectState* this = (FileSelectState*)thisx;
     size_t size;
@@ -118,10 +79,8 @@ void FileSelect_Init(GameState* thisx) {
     ShrinkWindow_Init();
     View_Init(&this->view, this->state.gfxCtx);
 
-    // @recomp manually relocate these symbols as the recompiler doesn't do this automatically for patches yet.
-    GameStateOverlay* ovl = &gGameStateOverlayTable[GAMESTATE_FILE_SELECT];
-    this->state.main = (void*)((u32)FileSelect_Main - (u32)ovl->vramStart + (u32)ovl->loadedRamAddr);
-    this->state.destroy = (void*)((u32)FileSelect_Destroy - (u32)ovl->vramStart + (u32)ovl->loadedRamAddr);
+    this->state.main = FileSelect_Main;
+    this->state.destroy = FileSelect_Destroy;
 
     FileSelect_InitContext(&this->state);
     Font_LoadOrderedFont(&this->font);
@@ -150,7 +109,7 @@ void FileSelect_Init(GameState* thisx) {
 }
 
 
-void FileSelect_SetWindowContentVtx(GameState *thisx) {
+RECOMP_PATCH void FileSelect_SetWindowContentVtx(GameState *thisx) {
     FileSelectState *this = (FileSelectState *)thisx;
     u16 vtxId;
     s16 j;
@@ -782,7 +741,7 @@ void FileSelect_SetWindowContentVtx(GameState *thisx) {
             }
         }
         else {
-            j = D_80814650[this->confirmButtonIndex];
+            j = D_80814650_patched[this->confirmButtonIndex];
         }
 
         this->windowContentVtx[vtxId + 0].v.ob[0] = this->windowContentVtx[vtxId + 2].v.ob[0] = this->windowPosX - 0xA;
@@ -827,7 +786,7 @@ void FileSelect_SetWindowContentVtx(GameState *thisx) {
  * Draw most window contents including buttons, labels, and icons.
  * Does not include anything from the keyboard and settings windows.
  */
-void FileSelect_DrawWindowContents(GameState *thisx) {
+RECOMP_PATCH void FileSelect_DrawWindowContents(GameState *thisx) {
     FileSelectState *this = (FileSelectState *)thisx;
     s16 fileIndex;
     s16 temp;
@@ -1032,7 +991,7 @@ void FileSelect_DrawWindowContents(GameState *thisx) {
     CLOSE_DISPS(this->state.gfxCtx);
 }
 
-void FileSelect_ConfirmFile(GameState *thisx) {
+RECOMP_PATCH void FileSelect_ConfirmFile(GameState *thisx) {
     FileSelectState *this = (FileSelectState *)thisx;
     Input *input = CONTROLLER1(&this->state);
 
@@ -1077,11 +1036,14 @@ void FileSelect_ConfirmFile(GameState *thisx) {
     }
 }
 
+// Non-relocatable reference to the original address of Play_Init.
+void Play_Init_NORELOCATE(GameState*);
+
 /**
  * Load the save for the appropriate file and start the game.
  * Update function for `SM_LOAD_GAME`
  */
-void FileSelect_LoadGame(GameState* thisx) {
+RECOMP_PATCH void FileSelect_LoadGame(GameState* thisx) {
     FileSelectState* this = (FileSelectState*)thisx;
     u16 i;
 
@@ -1101,7 +1063,7 @@ void FileSelect_LoadGame(GameState* thisx) {
     gSaveContext.gameMode = GAMEMODE_NORMAL;
 
     STOP_GAMESTATE(&this->state);
-    SET_NEXT_GAMESTATE(&this->state, Play_Init, sizeof(PlayState));
+    SET_NEXT_GAMESTATE(&this->state, Play_Init_NORELOCATE, sizeof(PlayState));
 
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance = ENTR_LOAD_OPENING;
