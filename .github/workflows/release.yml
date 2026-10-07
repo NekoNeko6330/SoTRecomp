@@ -236,11 +236,18 @@ jobs:
             **You need your own copy of the Sands of Time 1.22 ROM** (`OoT SoT 1.22.z64`, md5 `33273fb052fa8ea94410352a6ce52f8f`, big-endian .z64).
             Extract the archive, run `SoTRecompiled` (Linux) or `SoTRecompiled.exe` (Windows), select the ROM in the launcher, then start the game.
             You can also run `SoTRecompiled --rom "OoT SoT 1.22.z64" --start`.
+            Settings and saves are stored in `SoTRecompiled` (`%LOCALAPPDATA%` on Windows, `~/.config` on Linux).
 
             Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
 
-            This is an early, mostly untested build: the intro and title screen work, gameplay hasn't been tested much.
-            Please report crashes with the console output (e.g. `Failed to find function at 0x...`).
+            Built on the current Zelda64Recomp runtime (N64ModernRuntime and RT64): the game goes past the title
+            screen into gameplay and runs at its full speed (20 fps, interpolated to your display's refresh rate).
+            This is still an early, mostly untested build: please report crashes with the console output
+            (e.g. `Failed to find function at 0x...`).
+
+            If it runs slowly, check that the game uses your dedicated GPU, and try lower settings in the
+            Graphics menu (resolution, MSAA). Run with the environment variable `SOTRECOMP_FPS=1` to print
+            the framerate and rendering times to the console.
 
   cleanup:
     needs: release
