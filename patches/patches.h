@@ -10,6 +10,7 @@
     __attribute__((noinline, weak, used, section(".recomp_event"))) void func {} \
     _Pragma("GCC diagnostic pop")
 
+
 // TODO fix renaming symbols in patch recompilation
 #define osCreateMesgQueue osCreateMesgQueue_recomp
 #define osRecvMesg osRecvMesg_recomp
@@ -26,10 +27,13 @@
 #define osContStartQuery osContStartQuery_recomp
 #define osContGetQuery osContGetQuery_recomp
 
-#define sinf __sinf_recomp
-#define cosf __cosf_recomp
 #define bzero bzero_recomp
 #define gRandFloat sRandFloat
+// Decomp names of functions that are named differently in the recompiled game (z64hdr names)
+#define THGA_Init THGA_Ct
+#define DmaMgr_RequestSync DmaMgr_SendRequest0
+#define gRegEditor gGameInfo
+
 #include "global.h"
 #include "rt64_extended_gbi.h"
 
@@ -72,6 +76,17 @@
 int recomp_printf(const char* fmt, ...);
 float recomp_powf(float, float);
 
+static inline void* actor_relocate(Actor* actor, void* addr) {
+    if ((uintptr_t)addr >= 0x80800000) {
+        return (void*)((uintptr_t)addr -
+                (intptr_t)((uintptr_t)actor->overlayEntry->vramStart - (uintptr_t)actor->overlayEntry->loadedRamAddr));
+    }
+    else {
+        recomp_printf("Not an overlay address!: 0x%08X 0x%08X 0x%08X\n", (u32)addr, (u32)actor->overlayEntry->vramStart, (u32)actor->overlayEntry->loadedRamAddr);
+        return addr;
+    }
+}
+
 typedef enum {
     /* 0 */ PICTO_BOX_STATE_OFF,         // Not using the pictograph
     /* 1 */ PICTO_BOX_STATE_LENS,        // Looking through the lens of the pictograph
@@ -91,6 +106,9 @@ typedef enum {
         "\t.balign 8\n"                       \
         "\t.popsection\n");                   \
     extern u8 identifier[]
+
+void draw_dpad(PlayState* play);
+void draw_dpad_icons(PlayState* play);
 
 void View_ApplyInterpolate(View* view, s32 mask, bool reset_interpolation_state);
 

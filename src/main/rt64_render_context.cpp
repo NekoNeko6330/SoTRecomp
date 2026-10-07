@@ -2,6 +2,9 @@
 #include <cstring>
 #include <variant>
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
@@ -318,15 +321,51 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
 
+// Performance statistics, printed every 5 seconds when SOTRECOMP_FPS is set.
+namespace {
+    struct FrameStats {
+        bool enabled = std::getenv("SOTRECOMP_FPS") != nullptr;
+        std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        uint32_t dl_count = 0;
+        uint32_t screen_count = 0;
+        double dl_seconds = 0.0;
+        double screen_seconds = 0.0;
+
+        void report() {
+            auto now = std::chrono::steady_clock::now();
+            double elapsed = std::chrono::duration<double>(now - start).count();
+            if (elapsed >= 5.0) {
+                fprintf(stderr, "[fps] game frames: %.1f/s, screen updates: %.1f/s, display list processing: %.2f ms/frame, screen update: %.2f ms\n",
+                    dl_count / elapsed, screen_count / elapsed,
+                    dl_count ? dl_seconds * 1000.0 / dl_count : 0.0,
+                    screen_count ? screen_seconds * 1000.0 / screen_count : 0.0);
+                *this = FrameStats{};
+            }
+        }
+    };
+    FrameStats frame_stats;
+}
+
 void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
+    auto start = std::chrono::steady_clock::now();
     check_texture_pack_actions();
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
+    if (frame_stats.enabled) {
+        frame_stats.dl_count++;
+        frame_stats.dl_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+        frame_stats.report();
+    }
 }
 
 void zelda64::renderer::RT64Context::update_screen() {
+    auto start = std::chrono::steady_clock::now();
     app->updateScreen();
+    if (frame_stats.enabled) {
+        frame_stats.screen_count++;
+        frame_stats.screen_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    }
 }
 
 void zelda64::renderer::RT64Context::shutdown() {

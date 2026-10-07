@@ -66,3 +66,8 @@ RSPRecomp
 .idea
 build-*
 cmake-build-*
+
+# Sands of Time: generated from the ROM by tools/generate.py
+/sot.syms.toml
+/sot.datasyms.toml
+__pycache__/

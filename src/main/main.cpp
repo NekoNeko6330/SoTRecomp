@@ -1,3 +1,5 @@
+#include <thread>
+#include <chrono>
 #include <cstdio>
 #include <cassert>
 #include <unordered_map>
@@ -45,7 +47,6 @@
 #include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
 
-#include "mods/mm_recomp_dpad_builtin.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -144,7 +145,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    window = SDL_CreateWindow("Zelda 64: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
+    window = SDL_CreateWindow("Sands of Time: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
 #if defined(__linux__)
     SetImageAsIcon("icons/512.png",window);
     if (ultramodern::renderer::get_graphics_config().wm_option == ultramodern::renderer::WindowMode::Fullscreen) { // TODO: Remove once RT64 gets native fullscreen support on Linux
@@ -348,18 +349,33 @@ extern "C" void recomp_entrypoint(uint8_t * rdram, recomp_context * ctx);
 gpr get_entrypoint_address();
 
 // array of supported GameEntry objects
+// --start: start the game once the graphics are initialized (the VI thread needs a frame before the game starts)
+static bool start_game_directly = false;
+extern std::vector<recomp::GameEntry> supported_games;
+
+static void on_gfx_init() {
+    recompui::update_supported_options();
+    if (start_game_directly) {
+        std::thread{[]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            recomp::start_game(supported_games[0].game_id);
+            recompui::hide_all_contexts();
+        }}.detach();
+    }
+}
+
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash = 0xEF18B4A9E2386169ULL,
-        .internal_name = "ZELDA MAJORA'S MASK",
-        .game_id = u8"mm.n64.us.1.0",
-        .mod_game_id = "mm",
-        .save_type = recomp::SaveType::Flashram,
+        .rom_hash = 0x1576194BF8919C8FULL,
+        .internal_name = "Sands of Time",
+        .game_id = u8"oot.sot.1.22",
+        .mod_game_id = "sot",
+        .save_type = recomp::SaveType::Sram,
         .is_enabled = false,
-        .decompression_routine = zelda64::decompress_mm,
-        .has_compressed_code = true,
+        .has_compressed_code = false,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
+        .on_init_callback = zelda64::load_static_sections,
     },
 };
 
@@ -569,8 +585,6 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 #define REGISTER_FUNC(name) recomp::overlays::register_base_export(#name, name)
 
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
     recomp::Version project_version{};
     if (!recomp::Version::from_string(version_string, project_version)) {
         ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());
@@ -655,8 +669,6 @@ int main(int argc, char** argv) {
         recomp::register_game(game);
     }
 
-    recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
-
     REGISTER_FUNC(recomp_get_window_resolution);
     REGISTER_FUNC(recomp_get_target_aspect_ratio);
     REGISTER_FUNC(recomp_get_target_framerate);
@@ -707,7 +719,7 @@ int main(int argc, char** argv) {
 
     ultramodern::events::callbacks_t thread_callbacks{
         .vi_callback = recomp::update_rumble,
-        .gfx_init_callback = recompui::update_supported_options,
+        .gfx_init_callback = on_gfx_init,
     };
 
     ultramodern::error_handling::callbacks_t error_handling_callbacks{
@@ -730,6 +742,24 @@ int main(int argc, char** argv) {
 
     // Register the .rtz texture pack file format with the previous content type as its only allowed content type.
     recomp::mods::register_mod_container_type("rtz", std::vector{ texture_pack_content_type_id }, false);
+
+    // Command line options:
+    //   --rom <path>  validate and store a ROM (instead of selecting it in the launcher)
+    //   --start       start the game directly, without the launcher
+    for (int i = 1; i < argc; i++) {
+        std::string_view arg{ argv[i] };
+        if (arg == "--rom" && i + 1 < argc) {
+            std::u8string game_id = supported_games[0].game_id;
+            recomp::RomValidationError rom_error = recomp::select_rom(std::filesystem::path{ argv[++i] }, game_id);
+            if (rom_error != recomp::RomValidationError::Good) {
+                fprintf(stderr, "Invalid ROM: %s (error %d)\n", argv[i], (int)rom_error);
+                return EXIT_FAILURE;
+            }
+        }
+        else if (arg == "--start") {
+            start_game_directly = true;
+        }
+    }
 
     recomp::start(
         project_version,
