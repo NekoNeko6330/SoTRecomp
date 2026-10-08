@@ -157,6 +157,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/main/register_overlays.cpp
     ${CMAKE_SOURCE_DIR}/src/main/register_patches.cpp
     ${CMAKE_SOURCE_DIR}/src/main/rt64_render_context.cpp
+    ${CMAKE_SOURCE_DIR}/src/main/crash_log.cpp
 
     ${CMAKE_SOURCE_DIR}/src/game/input.cpp
     ${CMAKE_SOURCE_DIR}/src/game/controls.cpp
@@ -295,7 +296,13 @@ if (WIN32)
     )
 
     target_sources(Zelda64Recompiled PRIVATE ${CMAKE_SOURCE_DIR}/icons/app.rc)
-    target_link_libraries(Zelda64Recompiled PRIVATE SDL2 Winmm.lib)
+    target_link_libraries(Zelda64Recompiled PRIVATE SDL2 Winmm.lib Dbghelp.lib)
+
+    # Symbols (function names only) in a .pdb, for the stack traces in crash logs
+    target_compile_options(Zelda64Recompiled PRIVATE /Z7 -gline-tables-only)
+    target_compile_options(RecompiledFuncs PRIVATE /Z7 -gline-tables-only)
+    target_compile_options(PatchesLib PRIVATE /Z7 -gline-tables-only)
+    target_link_options(Zelda64Recompiled PRIVATE /DEBUG /OPT:REF /OPT:ICF)
 endif()
 
 if (APPLE)
@@ -392,5 +399,23 @@ build_pixel_shader(Zelda64Recompiled "shaders/InterfacePS.hlsl" "shaders/Interfa
 
 
 target_sources(Zelda64Recompiled PRIVATE ${SOURCES})
+
+# Build version shown in crash logs
+execute_process(
+    COMMAND git describe --always --dirty --tags
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE SOT_BUILD_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if (NOT SOT_BUILD_VERSION)
+    set(SOT_BUILD_VERSION "unknown")
+endif()
+set_source_files_properties(${CMAKE_SOURCE_DIR}/src/main/crash_log.cpp PROPERTIES COMPILE_DEFINITIONS "SOT_BUILD_VERSION=\"${SOT_BUILD_VERSION}\"")
+
+# Export the recompiled functions' names, for the stack traces in crash logs
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set_target_properties(Zelda64Recompiled PROPERTIES ENABLE_EXPORTS ON)
+endif()
 
 set_property(TARGET Zelda64Recompiled PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

@@ -38,6 +38,7 @@
 #include "zelda_game.h"
 #include "recomp_data.h"
 #include "ovl_patches.hpp"
+#include "crash_log.hpp"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
 #include "librecomp/helpers.hpp"
@@ -639,6 +640,9 @@ int main(int argc, char** argv) {
     SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
 #endif
 
+    // Write a crash log to the crash_logs folder (next to the executable, or in the app folder) for every crash
+    sot::crashlog::init(zelda64::get_program_path() / "crash_logs", zelda64::get_app_folder_path() / "crash_logs");
+
 #ifdef _WIN32
     // Force wasapi on Windows, as there seems to be some issue with sample queueing with directsound currently.
     SDL_setenv("SDL_AUDIODRIVER", "wasapi", true);
@@ -773,6 +777,8 @@ int main(int argc, char** argv) {
         error_handling_callbacks,
         threads_callbacks
     );
+
+    sot::crashlog::mark_clean_exit();
 
     NFD_Quit();
 

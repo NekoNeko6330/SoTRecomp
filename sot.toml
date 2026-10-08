@@ -32,9 +32,22 @@ args = ["u32", "u32", "u32"]
 
 # Tell the runtime where each overlay (actors, effects, game states, pause menu) is loaded, by VROM.
 # Overlay_Load(vromStart, vromEnd, vramStart, vramEnd, allocatedRamAddr)
+[[patches.func]]
+name = "sot_on_overlay_load"
+args = ["u32", "u32", "u32"]
+
+[[patches.func]]
+name = "sot_on_game_fault"
+args = ["u32", "u32"]
+
 [[patches.hook]]
 func = "Overlay_Load"
-text = "    load_overlays((uint32_t)ctx->r4, MEM_W(0x10, ctx->r29), (uint32_t)(ctx->r5 - ctx->r4));"
+text = "    load_overlays((uint32_t)ctx->r4, MEM_W(0x10, ctx->r29), (uint32_t)(ctx->r5 - ctx->r4)); sot_on_overlay_load((uint32_t)ctx->r4, MEM_W(0x10, ctx->r29), (uint32_t)(ctx->r5 - ctx->r4));"
+
+# The game's error handler (it would show its crash screen and hang): write a crash log instead
+[[patches.hook]]
+func = "Fault_AddHungupAndCrashImpl"
+text = "    sot_on_game_fault((uint32_t)ctx->r4, (uint32_t)ctx->r5);"
 
 # Single-instruction patches
 
