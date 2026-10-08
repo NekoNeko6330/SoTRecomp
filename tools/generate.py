@@ -38,6 +38,7 @@ def build_recompilers():
     # Patches for Sands of Time's code (built with GCC by z64rom):
     # - n64recomp-traps.patch: ignore trap instructions
     # - n64recomp-jumptables.patch: detect jump tables whose index register was used by a previous one
+    # - n64recomp-absolute-calls.patch: allow the patches to call the runtime's functions (absolute symbols)
     for patch in sorted((ROOT / "tools").glob("n64recomp-*.patch")):
         applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
         if applied.returncode != 0:

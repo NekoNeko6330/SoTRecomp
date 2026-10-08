@@ -1,0 +1,33 @@
+diff --git a/src/recompilation.cpp b/src/recompilation.cpp
+index b042ea2..5e773b5 100644
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -28,11 +28,12 @@ JalResolutionResult resolve_jal(const N64Recomp::Context& context, size_t cur_se
+     }
+ 
+     // Look for symbols with the target vram address
+-    const N64Recomp::Section& cur_section = context.sections[cur_section_index];
+     const auto matching_funcs_find = context.functions_by_vram.find(target_func_vram);
+-    uint32_t section_vram_start = cur_section.ram_addr;
+-    uint32_t section_vram_end = cur_section.ram_addr + cur_section.size;
+-    bool in_current_section = target_func_vram >= section_vram_start && target_func_vram < section_vram_end;
++    // Calls to absolute symbols (e.g. functions provided by the runtime) have no section
++    bool valid_section = cur_section_index < context.sections.size();
++    uint32_t section_vram_start = valid_section ? context.sections[cur_section_index].ram_addr : 0;
++    uint32_t section_vram_end = valid_section ? context.sections[cur_section_index].ram_addr + context.sections[cur_section_index].size : 0;
++    bool in_current_section = valid_section && target_func_vram >= section_vram_start && target_func_vram < section_vram_end;
+     bool exact_match_found = false;
+ 
+     // Use a thread local to prevent reallocation across runs and to allow multi-threading in the future.
+@@ -59,9 +60,8 @@ JalResolutionResult resolve_jal(const N64Recomp::Context& context, size_t cur_se
+                 break;
+             }
+ 
+-            // If the function's section isn't relocatable, add the function as a candidate.
+-            const auto& target_func_section = context.sections[target_func.section_index];
+-            if (!target_func_section.relocatable) {
++            // If the function's section isn't relocatable (or the function is an absolute symbol), add the function as a candidate.
++            if (target_func.section_index >= context.sections.size() || !context.sections[target_func.section_index].relocatable) {
+                 matched_funcs.push_back(target_func_index);
+             }
+         }

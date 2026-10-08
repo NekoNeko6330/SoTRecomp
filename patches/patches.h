@@ -33,6 +33,8 @@
 #define THGA_Init THGA_Ct
 #define DmaMgr_RequestSync DmaMgr_SendRequest0
 #define gRegEditor gGameInfo
+#define gAudioCtx gAudioContext
+#define Sfx_PlaySfxCentered func_80078884
 
 #include "global.h"
 #include "rt64_extended_gbi.h"

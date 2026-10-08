@@ -36,12 +36,35 @@ At runtime:
   registered when the game starts (`zelda64::load_static_sections`)
 - `patches/sot_patches.c` enables RT64's extended display lists and larger display list buffers.
   Functions that Sands of Time hooks itself (e.g. `Graph_Update`) are left untouched.
+- `patches/sot_features.c` adds Zelda64Recomp's enhancements, working around Sands of Time's own code
+  (its uLib functions and player overlay are patched by address, e.g. `func_8070BA9C`, its `Camera_Update`)
+
+## Features
+
+From Zelda64Recomp, configured in the menu (Esc / Back):
+- **Analog camera** (General > Analog Camera): the right stick rotates the camera. Otherwise the right stick is
+  mapped to the C buttons (dual analog).
+- **Gyro and mouse aiming** in first person (bow, slingshot, hookshot, ...) and right stick aiming with the analog
+  camera, with the aiming inversion options (combined with Sands of Time's own "invert Y axis" option)
+- **Autosave** (General > Autosave): saves like the pause menu, shortly after entering a new area and every three
+  minutes, when Link is standing on the ground outside of cutscenes and menus
+- **Z-targeting mode** (Switch / Hold), **low health beeps** toggle, **background music volume**
+- RT64: high resolutions, widescreen, high framerate (interpolated), MSAA, texture packs; mods
+
+Not yet: widescreen HUD (the HUD stays in the 4:3 area).
+
+## Crash logs
+
+Every crash writes a log to the `crash_logs` folder next to the executable (or in the app folder if it can't be
+written there): one `crash_<date>.txt` file per crash, and `all_crashes.txt` with all of them. Please send them when
+reporting crashes: they say where the crash happened in the game, so it can be fixed.
 
 ## Command line
 
 - `--rom <path>`: select the ROM without the launcher
 - `--start`: start the game directly
 - `SOTRECOMP_FPS=1` (environment variable): print the game framerate and rendering times every 5 seconds
+- `--show-console` (Windows): show the console output
 
 ## Building
 

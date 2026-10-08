@@ -507,7 +507,8 @@ extern "C" void sot_on_game_fault(uint32_t msg1, uint32_t msg2) {
         if (rdram == nullptr || addr < 0x80000000 || addr >= 0x80800000) {
             return ret;
         }
-        for (uint32_t i = 0; i < 256; i++) {
+        // (signed offsets: the MEM_ macros expect sign-extended addresses)
+        for (int32_t i = 0; i < 256; i++) {
             char c = (char)MEM_B(i, (int32_t)addr);
             if (c == '\0') {
                 break;
