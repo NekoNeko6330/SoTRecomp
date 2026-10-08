@@ -87,8 +87,10 @@ class Section:
     relocs: list = dataclasses.field(default_factory=list)  # (type name, vram, target vram)
     # internal: offsets (from vram) of text words relocated as R_MIPS_26
     reloc26: set = dataclasses.field(default_factory=set)
-    # internal: code addresses stored in the overlay's data (R_MIPS_32 in .data/.rodata), e.g. function tables
-    data_code_ptrs: set = dataclasses.field(default_factory=set)
+    # internal: code addresses stored in the overlay's data: (section, vram of the word, code address)
+    data_ptrs: list = dataclasses.field(default_factory=list)
+    # internal: .rodata vram range
+    rodata_range: tuple = (0, 0)
 
 
 # ROM
@@ -166,14 +168,13 @@ def overlay_section(name, vrom, data, vram):
     hi_targets = {}  # offset of HI16 -> target vram
     # Reloc offsets are relative to the start of their section
     section_base = {1: 0, 2: text_size, 3: text_size + data_size}
+    data_ptrs = []  # (section, vram of the word, code address) for R_MIPS_32 in .data/.rodata
     for section_id, rtype, offset in relocs:
         if section_id in (2, 3) and rtype == R_MIPS_32:
-            target = u32(data, section_base[section_id] + offset)
+            word = section_base[section_id] + offset
+            target = u32(data, word)
             if vram <= target < vram + text_size:
-                insn = u32(data, target - vram)
-                # .rodata also has jump tables (addresses inside functions): only keep function starts there
-                if section_id == 2 or (insn >> 16) == 0x27BD:
-                    sec.data_code_ptrs.add(target)
+                data_ptrs.append((section_id, vram + word, target))
             continue
         if section_id != 1:  # text
             continue
@@ -197,6 +198,9 @@ def overlay_section(name, vrom, data, vram):
         elif rtype == R_MIPS_26:
             sec.reloc26.add(offset)
     sec.relocs.sort(key=lambda r: r[1])
+
+    sec.data_ptrs = data_ptrs
+    sec.rodata_range = (vram + text_size + data_size, vram + text_size + data_size + rodata_size)
     return sec
 
 
@@ -427,10 +431,32 @@ def do_overlay(item):
     for _, _, target in sec.relocs:
         if sec.text_start <= target < sec.text_end:
             hints[target] = None
-    # Function pointers in the overlay's data (e.g. a game state's update function table)
-    for target in sec.data_code_ptrs:
-        hints[target] = None
     funcs = find_functions(sec, data, hints)
+    # Code addresses in the overlay's data are functions (e.g. a game state's update functions, or an actor's
+    # init/update/draw functions in its ActorInit, which GCC puts in .rodata), except for the entries of jump tables.
+    # Jump tables are the .rodata addresses loaded in functions that jump to a register (`jr`, not `jr $ra`).
+    rodata_start, rodata_end = sec.rodata_range
+    rodata_refs = sorted({t for r, _, t in sec.relocs if r == "R_MIPS_LO16" and rodata_start <= t < rodata_end})
+    jtbl_starts = set()
+    for start, size in funcs:
+        has_jr = any((lambda w: (w & 0xFC1FFFFF) == 0x00000008 and ((w >> 21) & 0x1F) != 31)(u32(data, a - sec.vram))
+                     for a in range(start, start + size, 4))
+        if has_jr:
+            jtbl_starts.update(t for r, insn, t in sec.relocs
+                               if r == "R_MIPS_LO16" and start <= insn < start + size and rodata_start <= t < rodata_end)
+    jtbl_ranges = []
+    for start in jtbl_starts:
+        later = [r for r in rodata_refs if r > start]
+        jtbl_ranges.append((start, later[0] if later else rodata_end))
+    new_hints = {}
+    for section_id, word_vram, target in sec.data_ptrs:
+        if section_id == 3 and any(start <= word_vram < end for start, end in jtbl_ranges):
+            continue
+        if target not in hints:
+            new_hints[target] = None
+    if new_hints:
+        hints.update(new_hints)
+        funcs = find_functions(sec, data, hints)
     return [(f"{sec.name}_{v:08X}", v, s) for v, s in funcs]
 
 
