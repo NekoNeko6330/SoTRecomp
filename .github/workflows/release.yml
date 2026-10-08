@@ -194,7 +194,10 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
+          # Use Visual Studio's clang-cl: fmt 10.2 (used by N64ModernRuntime) doesn't build with clang 20
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $env:PATH = "$vs\VC\Tools\Llvm\x64\bin;$env:PATH"
+          clang-cl --version
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fexceptions -Xclang -fcxx-exceptions" -DSOT_BUILD_PATCHES=OFF
           cmake --build build --target Zelda64Recompiled -j 4
       - name: Package
