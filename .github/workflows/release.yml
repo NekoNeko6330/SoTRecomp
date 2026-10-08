@@ -206,8 +206,8 @@ jobs:
           New-Item -ItemType Directory -Path SoTRecompiled | Out-Null
           Copy-Item build/Zelda64Recompiled.exe SoTRecompiled/SoTRecompiled.exe
           Copy-Item build/*.dll SoTRecompiled/
-          # Symbols, for the function names in crash logs
-          Copy-Item build/Zelda64Recompiled.pdb SoTRecompiled/SoTRecompiled.pdb
+          # Symbols, for the function names in crash logs (the name the executable refers to)
+          Copy-Item build/Zelda64Recompiled.pdb SoTRecompiled/Zelda64Recompiled.pdb
           Copy-Item -Recurse assets SoTRecompiled/assets
           Remove-Item -Recurse -Force SoTRecompiled/assets/scss
           Copy-Item README.md, COPYING, recompcontrollerdb.txt SoTRecompiled/

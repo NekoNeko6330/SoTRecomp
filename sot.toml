@@ -51,10 +51,16 @@ text = "    sot_on_game_fault((uint32_t)ctx->r4, (uint32_t)ctx->r5);"
 
 # Single-instruction patches
 
-# Sands of Time's Graph_TaskSet00 (in uLib) crashes the game if a frame takes more than 3 seconds to render
-# ("RCP is HUNG UP"), which can happen while RT64 compiles shaders. Make the timeout practically infinite:
-# osSetTimer(&timer, countdown, ...): the high word of the countdown, `move $a2, $zero` -> `lui $a2, 0x7FFF`.
+# Sands of Time's Graph_TaskSet00 (uLib) arms a 3 second timer with an OSTimer on the stack to detect an RCP hang,
+# and stops it when the graphics task is done. The runtime's timer thread keeps reading timers from memory, so stack
+# timers can be left behind with garbage contents and later send a message to a garbage queue (random crashes in
+# osSendMesg). The RCP can't hang here: don't arm the timer.
 [[patches.instruction]]
 func = "func_8070DD64"
-vram = 0x8070DDF0
-value = 0x3C067FFF
+vram = 0x8070DE08 # jal osSetTimer
+value = 0x00000000
+
+[[patches.instruction]]
+func = "func_8070DD64"
+vram = 0x8070DE20 # jal osStopTimer
+value = 0x00000000

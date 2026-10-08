@@ -216,7 +216,11 @@ namespace {
         static bool sym_initialized = false;
         if (!sym_initialized) {
             SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-            sym_initialized = SymInitialize(process, nullptr, TRUE);
+            // Look for the symbols (.pdb) next to the executable
+            char exe_path[MAX_PATH] = "";
+            GetModuleFileNameA(nullptr, exe_path, MAX_PATH);
+            std::string search_path = std::filesystem::path(exe_path).parent_path().string();
+            sym_initialized = SymInitialize(process, search_path.c_str(), TRUE);
         }
         alignas(SYMBOL_INFO) char symbol_buf[sizeof(SYMBOL_INFO) + 256];
         SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(symbol_buf);
@@ -434,8 +438,15 @@ namespace {
 
 #ifdef _WIN32
     LONG WINAPI on_unhandled_exception(EXCEPTION_POINTERS* info) {
-        char reason[128];
-        snprintf(reason, sizeof(reason), "native exception 0x%08lX at %p", info->ExceptionRecord->ExceptionCode, info->ExceptionRecord->ExceptionAddress);
+        char reason[512];
+        HMODULE module = nullptr;
+        char module_name[MAX_PATH] = "?";
+        void* address = info->ExceptionRecord->ExceptionAddress;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)address, &module)) {
+            GetModuleFileNameA(module, module_name, MAX_PATH);
+        }
+        snprintf(reason, sizeof(reason), "native exception 0x%08lX at %p (%s+0x%llX)", info->ExceptionRecord->ExceptionCode, address,
+            std::filesystem::path(module_name).filename().string().c_str(), (unsigned long long)((char*)address - (char*)module));
         write_report(reason, native_stack_trace());
         return EXCEPTION_EXECUTE_HANDLER;
     }
