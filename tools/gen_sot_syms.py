@@ -87,6 +87,8 @@ class Section:
     relocs: list = dataclasses.field(default_factory=list)  # (type name, vram, target vram)
     # internal: offsets (from vram) of text words relocated as R_MIPS_26
     reloc26: set = dataclasses.field(default_factory=set)
+    # internal: code addresses stored in the overlay's data (R_MIPS_32 in .data/.rodata), e.g. function tables
+    data_code_ptrs: set = dataclasses.field(default_factory=set)
 
 
 # ROM
@@ -162,7 +164,17 @@ def overlay_section(name, vrom, data, vram):
     # Pair HI16/LO16 like Overlay_Relocate does: per register
     hi_by_reg = {}
     hi_targets = {}  # offset of HI16 -> target vram
+    # Reloc offsets are relative to the start of their section
+    section_base = {1: 0, 2: text_size, 3: text_size + data_size}
     for section_id, rtype, offset in relocs:
+        if section_id in (2, 3) and rtype == R_MIPS_32:
+            target = u32(data, section_base[section_id] + offset)
+            if vram <= target < vram + text_size:
+                insn = u32(data, target - vram)
+                # .rodata also has jump tables (addresses inside functions): only keep function starts there
+                if section_id == 2 or (insn >> 16) == 0x27BD:
+                    sec.data_code_ptrs.add(target)
+            continue
         if section_id != 1:  # text
             continue
         insn = u32(data, offset)
@@ -415,6 +427,9 @@ def do_overlay(item):
     for _, _, target in sec.relocs:
         if sec.text_start <= target < sec.text_end:
             hints[target] = None
+    # Function pointers in the overlay's data (e.g. a game state's update function table)
+    for target in sec.data_code_ptrs:
+        hints[target] = None
     funcs = find_functions(sec, data, hints)
     return [(f"{sec.name}_{v:08X}", v, s) for v, s in funcs]
 

@@ -1,0 +1,22 @@
+diff --git a/src/analysis.cpp b/src/analysis.cpp
+index 9eaaa30..aa4bbc3 100644
+--- a/src/analysis.cpp
++++ b/src/analysis.cpp
+@@ -129,6 +129,17 @@ bool analyze_instruction(const rabbitizer::InstructionCpu& instr, const N64Recom
+             int addend_reg = reg_states[rs].valid_lui ? rt : rs;
+ 
+             // Copy the lui reg's state into the destination reg, then set the destination reg's addend to the other operand
++            temp = reg_states[valid_lui_reg];
++            temp.valid_addend = true;
++            temp.prev_addend_reg = addend_reg;
++            temp.prev_addu_vram = instr.getVram();
++        }
++        // Both registers have a lui state: the analysis is linear, so the state of a previous jump table's address register
++        // can leak into code reached from elsewhere. Use the register without an addend as the jump table address.
++        else if (reg_states[rs].valid_lui && reg_states[rt].valid_lui && reg_states[rs].valid_addend != reg_states[rt].valid_addend) {
++            int valid_lui_reg = reg_states[rs].valid_addend ? rt : rs;
++            int addend_reg = valid_lui_reg == rs ? rt : rs;
++
+             temp = reg_states[valid_lui_reg];
+             temp.valid_addend = true;
+             temp.prev_addend_reg = addend_reg;

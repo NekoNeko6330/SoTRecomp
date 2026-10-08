@@ -5,7 +5,7 @@ Generate everything the build needs from your Sands of Time ROM.
     python3 tools/generate.py "OoT SoT 1.22.z64"
 
 Steps:
-1. Build N64Recomp and RSPRecomp (lib/N64ModernRuntime/N64Recomp, with the patch in tools/n64recomp-traps.patch)
+1. Build N64Recomp and RSPRecomp (lib/N64ModernRuntime/N64Recomp, with the patches in tools/n64recomp-*.patch)
 2. Decompress the ROM, find the code and generate the recompiler inputs (tools/gen_sot_syms.py)
 3. Recompile the game (RecompiledFuncs/), the RSP microcodes (rsp/*.cpp) and the patches (RecompiledPatches/)
 
@@ -35,11 +35,13 @@ def build_recompilers():
     src = ROOT / "lib" / "N64ModernRuntime" / "N64Recomp"
     if not (src / "CMakeLists.txt").exists():
         raise SystemExit("lib/N64ModernRuntime/N64Recomp is missing: run `git submodule update --init --recursive`")
-    # Ignore trap instructions (used by z64rom's GCC-built code)
-    patch = ROOT / "tools" / "n64recomp-traps.patch"
-    applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
-    if applied.returncode != 0:
-        run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
+    # Patches for Sands of Time's code (built with GCC by z64rom):
+    # - n64recomp-traps.patch: ignore trap instructions
+    # - n64recomp-jumptables.patch: detect jump tables whose index register was used by a previous one
+    for patch in sorted((ROOT / "tools").glob("n64recomp-*.patch")):
+        applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
+        if applied.returncode != 0:
+            run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
     build = src / "build"
     generator = ["-G", "Ninja"] if shutil.which("ninja") else []
     # On Windows, build with MSVC (N64Recomp's fmt doesn't build with recent clang)
