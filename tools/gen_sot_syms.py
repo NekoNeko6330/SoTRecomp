@@ -399,10 +399,36 @@ def calls_in_functions(sec: Section, data: bytes, skip_offsets=frozenset(), with
     return targets
 
 
+def unreachable_starts(sec: Section, data: bytes):
+    """Function starts that nothing references directly (e.g. only called through function pointers in tables): code
+    can't fall through to the instruction after an unconditional branch (`b`) and its delay slot, so a stack frame
+    setup (`addiu $sp, $sp, -N`) there starts a function. GCC sometimes ends a function with a loop's `b`."""
+    candidates = []
+    for a in range(sec.text_start + 8, sec.text_end, 4):
+        w = u32(data, a - sec.vram)
+        if (w >> 16) == 0x27BD and (w & 0x8000) and (u32(data, a - 8 - sec.vram) >> 16) == 0x1000:
+            candidates.append(a)
+    if not candidates:
+        return set()
+    # Unless code before it branches over it (GCC shares tail code between functions)
+    max_target = []  # furthest branch target of the code before each instruction
+    furthest = 0
+    for a in range(sec.text_start, sec.text_end, 4):
+        max_target.append(furthest)
+        w = u32(data, a - sec.vram)
+        op = w >> 26
+        if op in (0x04, 0x05, 0x06, 0x07, 0x14, 0x15, 0x16, 0x17) or (op == 0x01 and ((w >> 16) & 0x1F) in (0, 1, 2, 3, 16, 17, 18, 19)):
+            offset = w & 0xFFFF
+            target = a + 4 + ((offset - 0x10000 if offset & 0x8000 else offset) << 2)
+            furthest = max(furthest, target)
+    return {a for a in candidates if max_target[(a - sec.text_start) // 4] < a}
+
+
 def static_functions(sec: Section, data: bytes, hints):
     if sec.name == "ulib":
         # GCC-built z64rom library without symbols. Debug info of libgcc objects is mixed with
         # their code: only keep code that is called, or directly follows other code.
+        hints = {**hints, **{a: None for a in unreachable_starts(sec, data)}}
         found = find_functions(sec, data, hints)
         trimmed = split_at(sec, {a for a, _ in found}, data, text_pointers(sec, data))
         funcs = []
@@ -427,6 +453,8 @@ def do_overlay(item):
         # Only if it looks like a function start (stack frame setup)
         if sec.text_start <= t < sec.text_end and (u32(data, t - sec.vram) >> 16) == 0x27BD:
             hints[t] = None
+    for t in unreachable_starts(sec, data):
+        hints[t] = None
     # Addresses of code loaded with HI16/LO16 pairs are function pointers (e.g. player action functions)
     for _, _, target in sec.relocs:
         if sec.text_start <= target < sec.text_end:
@@ -444,10 +472,16 @@ def do_overlay(item):
         if has_jr:
             jtbl_starts.update(t for r, insn, t in sec.relocs
                                if r == "R_MIPS_LO16" and start <= insn < start + size and rodata_start <= t < rodata_end)
+    # A jump table goes on while its words are code addresses: it ends before the next referenced .rodata (or
+    # the first word that isn't a code address, e.g. an ActorInit right after it, starting with the actor's id).
+    ptr_words = {word_vram for section_id, word_vram, _ in sec.data_ptrs if section_id == 3}
     jtbl_ranges = []
     for start in jtbl_starts:
         later = [r for r in rodata_refs if r > start]
-        jtbl_ranges.append((start, later[0] if later else rodata_end))
+        end = start
+        while end < (later[0] if later else rodata_end) and end in ptr_words:
+            end += 4
+        jtbl_ranges.append((start, end))
     new_hints = {}
     for section_id, word_vram, target in sec.data_ptrs:
         if section_id == 3 and any(start <= word_vram < end for start, end in jtbl_ranges):

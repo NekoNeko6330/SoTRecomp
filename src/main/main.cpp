@@ -58,7 +58,12 @@
 
 #include "../../lib/rt64/src/contrib/stb/stb_image.h"
 
-const std::string version_string = "1.2.2";
+#ifndef SOT_VERSION
+#define SOT_VERSION "0.0.0"
+#endif
+
+// Sands of Time: Recompiled's version (mods' minimum_recomp_version is compared to it)
+const std::string version_string = SOT_VERSION;
 
 template<typename... Ts>
 void exit_error(const char* str, Ts ...args) {

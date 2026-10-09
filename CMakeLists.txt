@@ -45,6 +45,10 @@ set(RT64_STATIC TRUE)
 set(RT64_SDL_WINDOW_VULKAN TRUE)
 add_compile_definitions(HLSL_CPU)
 
+# Version of Sands of Time: Recompiled, shown in the launcher (the release workflow sets it from the release's tag)
+set(SOT_VERSION "0.5.0" CACHE STRING "Version of Sands of Time: Recompiled")
+add_compile_definitions(SOT_VERSION="${SOT_VERSION}")
+
 if (RECOMP_FLATPAK)
     add_compile_definitions(RECOMP_FLATPAK)
 endif()

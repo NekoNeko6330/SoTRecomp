@@ -8,6 +8,7 @@ in the Mods menu. Their game id is `sot`.
 | --- | --- |
 | [better_roll](better_roll) | Controlled and faster rolling, from thinedave's ocarina-things (741b0f4) |
 | [look_tracking](look_tracking) | Link's head and eye tracking, from ModOcarina (13053ec, b793191) |
+| [fairy_text_1_0](fairy_text_1_0) | Restores the Great Fairy of Wisdom's line about Big Brother from Sands of Time 1.0 |
 | [torch_texture](torch_texture) | Test texture pack: replaces the torches' flame guard texture (object 0x00A4, 06002490) |
 
 ## Building

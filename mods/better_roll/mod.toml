@@ -10,9 +10,9 @@ Controlled and faster rolling, like thinedave's ocarina-things:
 - Attacking out of a roll waits for the end of the roll
 - Link keeps his speed when he starts moving from standing still, instead of slowing down for a frame"""
 short_description = "Controlled and faster rolling."
-authors = [ "thinedave", "NekoNeko6330" ]
+authors = [ "thinedave", "Claude" ]
 game_id = "sot"
-minimum_recomp_version = "1.2.2"
+minimum_recomp_version = "0.5.0"
 dependencies = []
 optional_dependencies = []
 native_libraries = []

@@ -11,9 +11,9 @@ enemy, an NPC, a prop or a door), and tilts it into turns when there's nothing t
 - Eyes: his face is re-UV'd like ModOcarina's, each eye drawn from its own texture, and his pupils follow the same \
 actor (and the animations' eye directions)"""
 short_description = "Link's head and eyes follow what's around him."
-authors = [ "NekoNeko6330" ]
+authors = [ "Claude" ]
 game_id = "sot"
-minimum_recomp_version = "1.2.2"
+minimum_recomp_version = "0.5.0"
 dependencies = []
 optional_dependencies = []
 native_libraries = []

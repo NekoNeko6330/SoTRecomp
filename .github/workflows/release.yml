@@ -146,8 +146,10 @@ jobs:
       - name: Generate the recompiled code
         run: python tools/generate.py sot.z64
       - name: Build
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DSOT_VERSION="${TAG#v}"
           cmake --build build --target Zelda64Recompiled -j$(nproc)
       - name: Package
         run: |
@@ -201,13 +203,15 @@ jobs:
         with:
           name: patches-prebuilt
       - name: Build
+        env:
+          TAG: ${{ inputs.tag }}
         shell: pwsh
         run: |
           # Use Visual Studio's clang-cl: fmt 10.2 (used by N64ModernRuntime) doesn't build with clang 20
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           $env:PATH = "$vs\VC\Tools\Llvm\x64\bin;$env:PATH"
           clang-cl --version
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fexceptions -Xclang -fcxx-exceptions" -DSOT_BUILD_PATCHES=OFF
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_FLAGS="-Xclang -fexceptions -Xclang -fcxx-exceptions" -DSOT_BUILD_PATCHES=OFF -DSOT_VERSION="$($env:TAG -replace '^v','')"
           cmake --build build --target Zelda64Recompiled -j 4
       - name: Package
         shell: pwsh
@@ -256,19 +260,15 @@ jobs:
             Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
 
             **New in this version**
-            - Fixed the crash when the game sits idle (in the background)
-            - Interpolation: Link's limbs, actors and effects are now interpolated individually, like Zelda64Recomp
-              (no more legs clipping through the tunic, or effects drawn twice at high framerates)
-            - Analog camera: replaced with ModOcarina's (the right stick moves the camera around Link, Y inverted
-              by default), it now works with every camera setting
-            - Lower input latency, like Zelda64Recomp: C-up looking and first person aiming react a frame sooner
-            - Fixed the first person aiming patch, which used the wrong offsets in Link's data
-            - New icon and launcher background
+            - Fixed a crash when some actors are removed (a function the recompiler had missed)
+            - Launcher: The Legend of Zelda: Sands of Time, with this project's version
+            - The version is now this project's (0.5.0): mods made for the previous version have to be updated
 
             **Mods** (`SoTRecompiled-Mods.zip`): put the `.nrm` files in the `mods` folder (Mods in the launcher has a
-            button to open it)
+            button to open it), replacing the ones from the previous version
             - Better Roll: controlled and faster rolling (thinedave's ocarina-things)
             - Look Tracking: Link's head and eyes follow what's around him (ModOcarina)
+            - Wisdom Fairy 1.0 Text: the Great Fairy of Wisdom's line about Big Brother, as it was in 1.0
             - Torch Texture Test: replaces the torches' flame guard texture (texture pack in an .nrm)
             To make mods, see `mods/README.md` in the repository.
 

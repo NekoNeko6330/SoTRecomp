@@ -1,0 +1,24 @@
+# Wisdom Fairy 1.0 Text: restores the Great Fairy of Wisdom's line about Big Brother from Sands of Time 1.0.
+
+[manifest]
+id = "sot_fairy_text_1_0"
+version = "1.0.0"
+display_name = "Wisdom Fairy 1.0 Text"
+description = """
+Restores what the Great Fairy of Wisdom says about Big Brother's Trial in Sands of Time 1.0:
+"Big Brother's Trial? No, this has nothing to do with that retard with IQs of 64!"
+(1.22: "What? Big Brother's Trial? No, this has nothing to do with that braindead moron and his IQ of 64!")"""
+short_description = "The Great Fairy of Wisdom's line about Big Brother, from 1.0."
+authors = [ "Claude" ]
+game_id = "sot"
+minimum_recomp_version = "0.5.0"
+dependencies = []
+optional_dependencies = []
+native_libraries = []
+
+[inputs]
+elf_path = "build/mod.elf"
+mod_filename = "sot_fairy_text_1_0"
+func_reference_syms_file = "../../sot.syms.toml"
+data_reference_syms_files = [ "../../sot.datasyms.toml" ]
+additional_files = []
