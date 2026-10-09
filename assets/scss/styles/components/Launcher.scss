@@ -38,48 +38,36 @@
 }
 
 
-@keyframes slide-mm-bg-over {
+@keyframes slide-bg-over {
 	0% {
-		transform: translateX(space(100));
+		transform: translateX(space(40));
 	}
 
-	100% { 
+	100% {
 		transform: translateX(space(0));
 	}
 }
 
-.launcher__background-wrapper {
-    display: flex;
-    position: absolute;
-    top: -55vw;
-    right: -100%;
-    bottom: -50vw;
-    left: -70vw;
-    align-items: center;
-    justify-content: flex-start;
-    transform: translateX(space(0));
-    animation: 25s cubic-out 1 slide-mm-bg-over;
-}
-
-@keyframes fade-mm-in {
+@keyframes fade-bg-in {
 	0% {
 		opacity: 0;
 	}
 
-	100% { 
-		opacity: 0.1;
+	100% {
+		opacity: 1;
 	}
 }
 
-.launcher__background-mm {
+// Sands of Time art, covering the launcher (registered as ?/sot/launcher_background in ui_launcher.cpp)
+.launcher__background-art {
     position: absolute;
     top: 0;
+    right: space(-40);
     bottom: 0;
     left: 0;
-    width: auto;
-    height: 100%;
-    animation: 2.5s cubic-in-out 1 fade-mm-in;
-    opacity: 0.1;
+    decorator: image(?/sot/launcher_background cover center center);
+    transform: translateX(space(0));
+    animation: 25s cubic-out 1 slide-bg-over, 2.5s cubic-in-out 1 fade-bg-in;
 }
 
 .launcher__title-quadrant {

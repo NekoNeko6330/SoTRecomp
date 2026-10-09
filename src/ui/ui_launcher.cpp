@@ -6,6 +6,7 @@
 #include "RmlUi/Core.h"
 #include "nfd.h"
 #include <filesystem>
+#include <fstream>
 
 static std::string version_string;
 
@@ -63,6 +64,13 @@ public:
 
     }
     void load_document() override {
+        // The launcher's background art
+        std::ifstream background_file(zelda64::get_asset_path("launcher_background.png"), std::ios::binary);
+        std::vector<char> background_bytes((std::istreambuf_iterator<char>(background_file)), std::istreambuf_iterator<char>());
+        if (!background_bytes.empty()) {
+            recompui::queue_image_from_bytes_file("?/sot/launcher_background", background_bytes);
+        }
+
 		launcher_context = recompui::create_context(zelda64::get_asset_path("launcher.rml"));
     }
     void register_events(recompui::UiEventListenerInstancer& listener) override {
