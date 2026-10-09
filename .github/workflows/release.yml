@@ -93,6 +93,15 @@ jobs:
         run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:SOT_ROM_URL -in rom.enc -out sot.z64 && rm rom.enc
       - name: Generate and build the patches
         run: python tools/generate.py sot.z64
+      - name: Build the mods
+        run: |
+          cmake --build lib/N64ModernRuntime/N64Recomp/build --target RecompModTool --parallel
+          make -C mods
+          cd mods/out && zip -X ../../SoTRecompiled-Mods.zip *.nrm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoTRecompiled-Mods
+          path: SoTRecompiled-Mods.zip
       - uses: actions/upload-artifact@v4
         with:
           name: patches-prebuilt
@@ -218,7 +227,7 @@ jobs:
           path: SoTRecompiled-Windows.zip
 
   release:
-    needs: [build-linux, build-windows]
+    needs: [patches, build-linux, build-windows]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/download-artifact@v4
@@ -235,6 +244,7 @@ jobs:
           files: |
             SoTRecompiled-Linux.tar.gz
             SoTRecompiled-Windows.zip
+            SoTRecompiled-Mods.zip
           body: |
             Native PC port of The Legend of Zelda: Ocarina of Time – **Sands of Time** (1.22), made with N64: Recompiled.
 
@@ -246,12 +256,21 @@ jobs:
             Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
 
             **New in this version**
-            - Crash logs: every crash writes a log to the `crash_logs` folder next to the executable (`crash_<date>.txt`,
-              and `all_crashes.txt` with all of them). Please send them when reporting a crash.
-            - Zelda64Recomp's enhancements: analog camera (General > Analog Camera), gyro and mouse aiming, autosave,
-              Z-targeting mode, low health beeps toggle, background music volume
-            - Fixed crashes: going to the file select, opening the pause menu, shooting arrows (and other actors'
-              functions that weren't found)
+            - Fixed the crash when the game sits idle (in the background)
+            - Interpolation: Link's limbs, actors and effects are now interpolated individually, like Zelda64Recomp
+              (no more legs clipping through the tunic, or effects drawn twice at high framerates)
+            - Analog camera: replaced with ModOcarina's (the right stick moves the camera around Link, Y inverted
+              by default), it now works with every camera setting
+            - Lower input latency, like Zelda64Recomp: C-up looking and first person aiming react a frame sooner
+            - Fixed the first person aiming patch, which used the wrong offsets in Link's data
+            - New icon and launcher background
+
+            **Mods** (`SoTRecompiled-Mods.zip`): put the `.nrm` files in the `mods` folder (Mods in the launcher has a
+            button to open it)
+            - Better Roll: controlled and faster rolling (thinedave's ocarina-things)
+            - Look Tracking: Link's head and eyes follow what's around him (ModOcarina)
+            - Torch Texture Test: replaces the torches' flame guard texture (texture pack in an .nrm)
+            To make mods, see `mods/README.md` in the repository.
 
             Built on the current Zelda64Recomp runtime (N64ModernRuntime and RT64). The game runs at its full speed
             (20 fps, interpolated to your display's refresh rate). This is still an early build: expect crashes, and

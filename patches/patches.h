@@ -37,6 +37,10 @@
 #define Sfx_PlaySfxCentered func_80078884
 
 #include "global.h"
+
+// Sands of Time is built on the debug version (OOT_DEBUG): no debug prints
+#undef PRINTF
+#define PRINTF(...) (void)0
 #include "rt64_extended_gbi.h"
 
 #ifndef gEXFillRectangle

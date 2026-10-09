@@ -1,0 +1,25 @@
+# Better Roll: controlled and faster rolling (from thinedave's ocarina-things, 741b0f4).
+
+[manifest]
+id = "sot_better_roll"
+version = "1.0.0"
+display_name = "Better Roll"
+description = """
+Controlled and faster rolling, like thinedave's ocarina-things:
+- Link rolls 1.75 times faster than he walks (instead of 1.5 times), and can be steered while rolling
+- Attacking out of a roll waits for the end of the roll
+- Link keeps his speed when he starts moving from standing still, instead of slowing down for a frame"""
+short_description = "Controlled and faster rolling."
+authors = [ "thinedave", "NekoNeko6330" ]
+game_id = "sot"
+minimum_recomp_version = "1.2.2"
+dependencies = []
+optional_dependencies = []
+native_libraries = []
+
+[inputs]
+elf_path = "build/mod.elf"
+mod_filename = "sot_better_roll"
+func_reference_syms_file = "../../sot.syms.toml"
+data_reference_syms_files = [ "../../sot.datasyms.toml" ]
+additional_files = []

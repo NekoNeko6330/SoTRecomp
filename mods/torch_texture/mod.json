@@ -1,0 +1,10 @@
+{
+    "game_id": "sot",
+    "id": "sot_torch_texture",
+    "version": "1.0.0",
+    "display_name": "Torch Texture Test",
+    "description": "Test mod: replaces the texture of the torches' flame guard (object 0x00A4, texture 06002490) with a new one.",
+    "short_description": "Replaces the torches' flame guard texture.",
+    "authors": [ "NekoNeko6330" ],
+    "minimum_recomp_version": "1.2.2"
+}

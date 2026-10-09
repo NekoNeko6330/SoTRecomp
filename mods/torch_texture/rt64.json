@@ -1,0 +1,14 @@
+{
+    "configuration": {
+        "configurationVersion": 3,
+        "hashVersion": 5
+    },
+    "textures": [
+        {
+            "path": "torch_flame_guard",
+            "hashes": {
+                "rt64": "25220a1848c4ffe0"
+            }
+        }
+    ]
+}
