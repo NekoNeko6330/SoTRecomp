@@ -27,88 +27,168 @@ void AudioSeq_SequencePlayerDisable(SequencePlayer* seqPlayer);
 
 extern u8 sOcarinaInstrumentId;
 
-static f32 sot_sqrtf(f32 x) {
-    return __builtin_sqrtf(x);
-}
-
 static f32 sot_fabsf(f32 x) {
     return x < 0.0f ? -x : x;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// Analog camera
+// Analog camera: ModOcarina's controller 2 camera (bf713ce), on the right stick.
 //
-// Sands of Time's Normal1 camera doesn't swing back behind Link while he stands still, and follows him from the
-// camera's current position when he moves. So the right stick rotates the camera (eye and eyeNext around at) right
-// before the game updates it.
+// The right stick moves the camera around Link (Y inverted, like ModOcarina, unless inverted in the options). While the
+// stick is held, the camera stops following Link on its own; it does again once the stick is released. Sands of Time's
+// Camera_Normal1 already keeps its swing timer (it doesn't swing back behind Link on its own), like ModOcarina's.
 
-#define ANALOG_CAM_YAW_SPEED 1500.0f
-#define ANALOG_CAM_PITCH_SPEED 500.0f
-#define ANALOG_CAM_THRESHOLD 0.1f
+// Largest f32 (FLT_MAX): with this update rate the camera does not turn on its own
+#define CAM_UPDATE_RATE_INV_NONE 3.40282347e+38f
 
-static void rotate_around(Vec3f* point, Vec3f* center, s16 yaw, s16 pitch) {
-    f32 dx = point->x - center->x;
-    f32 dy = point->y - center->y;
-    f32 dz = point->z - center->z;
-    f32 s = Math_SinS(yaw);
-    f32 c = Math_CosS(yaw);
-    f32 nx = dx * c + dz * s;
-    f32 nz = dz * c - dx * s;
-    f32 horizontal = sot_sqrtf(nx * nx + nz * nz);
+// Camera speed, relative to Sunken Tower
+#define CAM_STICK2_YAW_SPEED 2.25f
+#define CAM_STICK2_PITCH_SPEED 2.5f
 
-    if ((pitch != 0) && (horizontal > 1.0f)) {
-        f32 ps = Math_SinS(pitch);
-        f32 pc = Math_CosS(pitch);
-        f32 new_horizontal = horizontal * pc - dy * ps;
-        f32 new_dy = horizontal * ps + dy * pc;
-        f32 length = sot_sqrtf(new_horizontal * new_horizontal + new_dy * new_dy);
+s32 Camera_ChangeMode(Camera* camera, s16 mode); // Camera_RequestMode
 
-        // Keep the camera between about 60 degrees below and 75 degrees above the horizon
-        if ((new_horizontal > 1.0f) && (new_dy < length * 0.96f) && (new_dy > -length * 0.86f)) {
-            nx *= new_horizontal / horizontal;
-            nz *= new_horizontal / horizontal;
-            dy = new_dy;
-        }
-    }
+static Vec3f add_geo(Vec3f* origin, VecGeo* geo) {
+    Vec3f v;
+    f32 horizontal = geo->r * Math_CosS(geo->pitch);
 
-    point->x = center->x + nx;
-    point->y = center->y + dy;
-    point->z = center->z + nz;
+    v.x = origin->x + horizontal * Math_SinS(geo->yaw);
+    v.y = origin->y + geo->r * Math_SinS(geo->pitch);
+    v.z = origin->z + horizontal * Math_CosS(geo->yaw);
+    return v;
 }
 
 static void analog_cam_update(Camera* camera) {
+    static s32 sStickActive = false;
     PlayState* play = camera->play;
-    Player* player = GET_PLAYER(play);
-    f32 input_x;
-    f32 input_y;
+    f32 stickX;
+    f32 stickY;
     s32 inverted_x;
     s32 inverted_y;
+    VecGeo geo;
+    s16 speed;
+    s16 step;
 
-    // Only the main camera in its normal behavior, with Link controllable
-    if ((camera->camId != CAM_ID_MAIN) || (camera->status != CAM_STAT_ACTIVE) || (camera->mode != CAM_MODE_NORMAL) ||
-        (play->csCtx.state != CS_STATE_IDLE) || (player == NULL) || Player_InCsMode(play) ||
-        (player->unk_664 != NULL) || (play->pauseCtx.state != 0)) {
+    // First person and aiming use the right stick to aim instead
+    if ((camera->status != CAM_STAT_ACTIVE) || (play->pauseCtx.state != 0) ||
+        (camera->mode == CAM_MODE_FIRST_PERSON) || (camera->mode == CAM_MODE_AIM_ADULT) ||
+        (camera->mode == CAM_MODE_AIM_CHILD) || (camera->mode == CAM_MODE_AIM_BOOMERANG)) {
+        stickX = stickY = 0.0f;
+    } else {
+        recomp_get_camera_inputs(&stickX, &stickY);
+        // Like controller 2's stick: up is positive
+        stickY = -stickY;
+
+        recomp_get_analog_inverted_axes(&inverted_x, &inverted_y);
+        if (inverted_x) {
+            stickX = -stickX;
+        }
+        if (inverted_y) {
+            stickY = -stickY;
+        }
+    }
+
+    // Dead zone
+    if (sot_fabsf(stickX) < 0.02f) {
+        stickX = 0.0f;
+    }
+    if (sot_fabsf(stickY) < 0.02f) {
+        stickY = 0.0f;
+    }
+
+    if ((stickX == 0.0f) && (stickY == 0.0f)) {
+        if (sStickActive) {
+            // Let the camera follow Link again
+            camera->yawUpdateRateInv = camera->pitchUpdateRateInv = 6900.0f;
+            sStickActive = false;
+        }
         return;
     }
 
-    recomp_get_camera_inputs(&input_x, &input_y);
-    if ((sot_fabsf(input_x) < ANALOG_CAM_THRESHOLD) && (sot_fabsf(input_y) < ANALOG_CAM_THRESHOLD)) {
-        return;
+    sStickActive = true;
+
+    {
+        // Square the magnitude, boost the diagonals
+        Vec3f zero = { 0.0f, 0.0f, 0.0f };
+        Vec3f stick;
+        s16 angle;
+        s16 yaw;
+        f32 mag;
+        f32 diagonalBoost;
+
+        stick.x = stickX;
+        stick.y = 0.0f;
+        stick.z = stickY;
+
+        angle = Math_Vec3f_Yaw(&zero, &stick);
+        if (angle < 0) {
+            angle = -angle;
+        }
+        mag = Math_Vec3f_DistXZ(&zero, &stick);
+        mag = mag * mag;
+        if (angle > 0x4000) {
+            angle -= 0x4000;
+        }
+        angle = ABS((s16)(angle - 0x2000));
+        if (angle > 0x2000) {
+            angle = 0x2000;
+        }
+        diagonalBoost = SQ(angle * (1.0f / 0x2000) - 1.0f) * 1.1f + 1.0f;
+
+        yaw = Math_Vec3f_Yaw(&zero, &stick);
+        stickX = Math_SinS(yaw) * mag * 1.35f * diagonalBoost;
+        stickY = Math_CosS(yaw) * mag * 1.35f * diagonalBoost;
     }
 
-    recomp_get_analog_inverted_axes(&inverted_x, &inverted_y);
-    if (inverted_x) {
-        input_x = -input_x;
-    }
-    if (inverted_y) {
-        input_y = -input_y;
+    if ((camera->mode == CAM_MODE_JUMP) || (camera->mode == CAM_MODE_LEDGE_HANG) ||
+        (camera->mode == CAM_MODE_FREE_FALL)) {
+        Camera_ChangeMode(camera, CAM_MODE_NORMAL);
     }
 
-    s16 yaw = (s16)(-input_x * ANALOG_CAM_YAW_SPEED);
-    s16 pitch = (s16)(input_y * ANALOG_CAM_PITCH_SPEED);
+    camera->pitchUpdateRateInv = camera->yawUpdateRateInv = CAM_UPDATE_RATE_INV_NONE;
+    camera->rUpdateRateInv = 17.0f;
 
-    rotate_around(&camera->eye, &camera->at, yaw, pitch);
-    rotate_around(&camera->eyeNext, &camera->at, yaw, pitch);
+    if ((camera->mode == CAM_MODE_NORMAL) && (camera->fov >= 58.9f)) {
+        camera->fov = 58.9f;
+    }
+
+    geo.r = camera->dist;
+    geo.yaw = Math_Vec3f_Yaw(&camera->at, &camera->eye);
+    geo.pitch = Math_Vec3f_Pitch(&camera->eye, &camera->at);
+
+    speed = camera->dist * 0.2f + 512;
+
+    // Yaw
+    if (stickX != 0.0f) {
+        step = speed * sot_fabsf(stickX);
+        step = step * 1.75f * CAM_STICK2_YAW_SPEED;
+        if (stickX > 0.0f) {
+            step = -step;
+        }
+
+        geo.yaw += step;
+
+        if (camera->mode == CAM_MODE_Z_TARGET_FRIENDLY) {
+            camera->paramData.para1.rwData.yawTarget += step;
+        }
+    }
+
+    // Pitch, inverted Y
+    if (stickY != 0.0f) {
+        step = speed * sot_fabsf(stickY) * CAM_STICK2_PITCH_SPEED;
+
+        if (stickY > 0.0f) {
+            geo.pitch = CLAMP_MAX((s16)(geo.pitch + step), 12000);
+        } else {
+            geo.pitch = CLAMP_MIN((s16)(geo.pitch - step), -8000);
+        }
+    }
+
+    camera->eye = camera->eyeNext = add_geo(&camera->at, &geo);
+
+    if (camera->mode == CAM_MODE_NORMAL) {
+        // No automatic swing behind Link right after
+        camera->paramData.norm1.rwData.startSwingTimer = 5;
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
