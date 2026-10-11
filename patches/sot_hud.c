@@ -82,6 +82,11 @@ static void hud_reset_align(GraphicsContext* gfxCtx, bool scissor) {
 
 // @recomp Interface_Draw: let scissors cover the whole screen while drawing the HUD, and reset the alignment after.
 RECOMP_PATCH void Interface_Draw(PlayState* play) {
+    // @recomp Sands of Time's Interface_Draw reads Link's state: don't draw the HUD without him.
+    if (GET_PLAYER(play) == NULL) {
+        return;
+    }
+
     OPEN_DISPS(play->state.gfxCtx, "../z_parameter.c", 0);
     gEXSetScissorAlign(OVERLAY_DISP++, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_RIGHT, 0, 0, -SCREEN_WIDTH, 0, 0, 0, SCREEN_WIDTH,
                        SCREEN_HEIGHT);

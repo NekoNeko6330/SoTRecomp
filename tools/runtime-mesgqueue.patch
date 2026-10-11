@@ -1,0 +1,15 @@
+diff --git a/ultramodern/src/mesgqueue.cpp b/ultramodern/src/mesgqueue.cpp
+index 6f38e02..a4a6965 100644
+--- a/ultramodern/src/mesgqueue.cpp
++++ b/ultramodern/src/mesgqueue.cpp
+@@ -63,6 +63,10 @@ s32 MQ_IS_FULL(OSMesgQueue* mq) {
+ 
+ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+     OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
++    // A queue without room (not created, or its memory reused) can't receive anything
++    if (mq->msgCount <= 0) {
++        return false;
++    }
+     if (!block) {
+         // If non-blocking, fail if the queue is full.
+         if (MQ_IS_FULL(mq)) {

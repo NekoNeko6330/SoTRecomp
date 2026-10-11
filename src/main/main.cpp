@@ -337,10 +337,24 @@ void reset_audio(uint32_t output_freq) {
 extern RspUcodeFunc njpgdspMain;
 extern RspUcodeFunc aspMain;
 
+// The audio microcode, ending the task instead of exiting when it reads a command it can't run (a corrupted
+// command list, which only makes that frame of audio wrong on the console): the game keeps running.
+static RspExitReason aspMain_safe(uint8_t* rdram, uint32_t ucode_addr) {
+    RspExitReason exit_reason = aspMain(rdram, ucode_addr);
+    if (exit_reason == RspExitReason::UnhandledJumpTarget) {
+        static int skipped_tasks = 0;
+        if (skipped_tasks++ < 10) {
+            fprintf(stderr, "Skipped an audio task that the audio microcode couldn't run\n");
+        }
+        return RspExitReason::Broke;
+    }
+    return exit_reason;
+}
+
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     switch (task->t.type) {
     case M_AUDTASK:
-        return aspMain;
+        return aspMain_safe;
 
     case M_NJPEGTASK:
         return njpgdspMain;
