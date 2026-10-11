@@ -5,7 +5,7 @@ Generate everything the build needs from your Sands of Time ROM.
     python3 tools/generate.py "OoT SoT 1.22.z64"
 
 Steps:
-1. Patch the runtime (tools/runtime-*.patch), build N64Recomp and RSPRecomp (lib/N64ModernRuntime/N64Recomp, with
+1. Patch the runtime and RT64 (tools/runtime-*.patch, tools/rt64-*.patch), build N64Recomp and RSPRecomp (lib/N64ModernRuntime/N64Recomp, with
    the patches in tools/n64recomp-*.patch)
 2. Decompress the ROM, find the code and generate the recompiler inputs (tools/gen_sot_syms.py)
 3. Recompile the game (RecompiledFuncs/), the RSP microcodes (rsp/*.cpp) and the patches (RecompiledPatches/)
@@ -62,11 +62,13 @@ def build_recompilers():
 def patch_runtime():
     # Patches for the runtime (lib/N64ModernRuntime):
     # - runtime-mesgqueue.patch: don't send messages to message queues without room (divided by zero)
-    src = ROOT / "lib" / "N64ModernRuntime"
-    for patch in sorted((ROOT / "tools").glob("runtime-*.patch")):
-        applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
-        if applied.returncode != 0:
-            run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
+    # Patches for RT64 (lib/rt64):
+    # - rt64-culldl.patch: G_CULLDL, which skips the parts of the rooms that the console doesn't draw
+    for prefix, src in (("runtime", ROOT / "lib" / "N64ModernRuntime"), ("rt64", ROOT / "lib" / "rt64")):
+        for patch in sorted((ROOT / "tools").glob(f"{prefix}-*.patch")):
+            applied = subprocess.run(["git", "apply", "--ignore-whitespace", "--reverse", "--check", str(patch)], cwd=src, capture_output=True)
+            if applied.returncode != 0:
+                run(["git", "apply", "--ignore-whitespace", str(patch)], cwd=src)
 
 
 def main():
