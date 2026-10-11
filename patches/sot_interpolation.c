@@ -509,3 +509,73 @@ RECOMP_PATCH void SkyboxDraw_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfx
 RECOMP_PATCH Mtx* SkyboxDraw_UpdateMatrix(SkyboxContext* skyboxCtx, f32 x, f32 y, f32 z) {
     return sSkyboxDrawMatrix;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Skin skeletons (horses): each limb gets its own matrix group, its vertices being interpolated as they are deformed by
+// the CPU (Zelda64Recomp's Skin_DrawImpl).
+
+extern MtxF gSkinLimbMatrices[];
+
+// @recomp Tag each limb of the skin.
+RECOMP_PATCH void Skin_DrawImpl(Actor* actor, PlayState* play, Skin* skin, SkinPostDraw postDraw,
+                                SkinOverrideLimbDraw overrideLimbDraw, s32 setTranslation, s32 arg6, s32 drawFlags) {
+    s32 i;
+    s32 segmentType;
+    SkinLimb** skeleton;
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    Mtx* mtx;
+    u32 id = sot_actor_transform_id(actor);
+
+    OPEN_DISPS(gfxCtx, "../z_skin.c", 471);
+
+    if (!(drawFlags & SKIN_DRAW_FLAG_CUSTOM_TRANSFORMS)) {
+        Skin_ApplyAnimTransformations(skin, gSkinLimbMatrices, actor, setTranslation);
+    }
+
+    skeleton = SEGMENTED_TO_VIRTUAL(skin->skeletonHeader->segment);
+
+    if (!(drawFlags & SKIN_DRAW_FLAG_CUSTOM_MATRIX)) {
+        gSPMatrix(POLY_OPA_DISP++, &gMtxClear, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &skin->mtx);
+
+        if (mtx == NULL) {
+            goto close_disps;
+        }
+
+        gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    }
+
+    for (i = 0; i < skin->skeletonHeader->limbCount; i++) {
+        s32 shouldDraw = true;
+
+        if (overrideLimbDraw != NULL) {
+            shouldDraw = overrideLimbDraw(actor, play, i, skin);
+        }
+
+        segmentType = ((SkinLimb*)SEGMENTED_TO_VIRTUAL(skeleton[i]))->segmentType;
+
+        // @recomp Push the same matrix (multiplied by the identity) to give the limb its own matrix group.
+        if (id != 0) {
+            gSPMatrix(POLY_OPA_DISP++, &gMtxClear, G_MTX_PUSH | G_MTX_MUL | G_MTX_MODELVIEW);
+            gEXMatrixGroupDecomposedVerts(POLY_OPA_DISP++, id + i, G_EX_PUSH, G_MTX_MODELVIEW, G_EX_EDIT_ALLOW);
+        }
+
+        if (segmentType == SKIN_LIMB_TYPE_ANIMATED && shouldDraw == true) {
+            Skin_DrawAnimatedLimb(gfxCtx, skin, i, arg6, drawFlags);
+        } else if (segmentType == SKIN_LIMB_TYPE_NORMAL && shouldDraw == true) {
+            Skin_DrawLimb(gfxCtx, skin, i, NULL, drawFlags);
+        }
+
+        if (id != 0) {
+            gSPPopMatrix(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+            gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+        }
+    }
+
+    if (postDraw != NULL) {
+        postDraw(actor, play, skin);
+    }
+
+close_disps:
+    CLOSE_DISPS(gfxCtx, "../z_skin.c", 534);
+}
