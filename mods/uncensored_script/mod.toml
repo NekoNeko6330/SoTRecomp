@@ -9,7 +9,7 @@ Restores parts of the script that were changed or removed after the original ver
 short_description = "Restores script changed after Sands of Time's original version."
 authors = [ "Claude" ]
 game_id = "sot"
-minimum_recomp_version = "0.6.0"
+minimum_recomp_version = "0.5.0"
 dependencies = []
 optional_dependencies = []
 native_libraries = []

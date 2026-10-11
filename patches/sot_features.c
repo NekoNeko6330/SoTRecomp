@@ -93,7 +93,16 @@ static bool analog_cam_allowed(Camera* camera) {
         return false;
     }
 
-    funcId = sCameraSettings[camera->setting].cameraModes[camera->mode].funcId;
+    // Jumping, hanging from a ledge and falling: the analog camera switches to the normal camera, if it's a free one
+    if ((camera->mode == CAM_MODE_JUMP) || (camera->mode == CAM_MODE_LEDGE_HANG) ||
+        (camera->mode == CAM_MODE_FREE_FALL)) {
+        if (!(sCameraSettings[camera->setting].flags & (1 << CAM_MODE_NORMAL))) {
+            return false;
+        }
+        funcId = sCameraSettings[camera->setting].cameraModes[CAM_MODE_NORMAL].funcId;
+    } else {
+        funcId = sCameraSettings[camera->setting].cameraModes[camera->mode].funcId;
+    }
     return ((funcId >= CAM_FUNC_NORM0) && (funcId <= CAM_FUNC_PARA4)) ||
            ((funcId >= CAM_FUNC_JUMP0) && (funcId <= CAM_FUNC_BATT4));
 }

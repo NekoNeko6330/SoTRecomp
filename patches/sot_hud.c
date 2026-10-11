@@ -55,6 +55,25 @@ static void set_viewport_align(Gfx** gfx, s32 align) {
     }
 }
 
+// Scissors follow the viewport's alignment (the HUD's views set the scissor to their viewport, e.g. the A button's
+// label); without alignment, they cover the whole screen.
+static void set_scissor_align(Gfx** gfx, s32 align) {
+    switch (align) {
+        case ALIGN_LEFT:
+            gEXSetScissorAlign((*gfx)++, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_LEFT, -HUD_MARGIN_REDUCTION, 0,
+                               -HUD_MARGIN_REDUCTION, 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+            break;
+        case ALIGN_RIGHT:
+            gEXSetScissorAlign((*gfx)++, G_EX_ORIGIN_RIGHT, G_EX_ORIGIN_RIGHT, -(SCREEN_WIDTH - HUD_MARGIN_REDUCTION),
+                               0, -(SCREEN_WIDTH - HUD_MARGIN_REDUCTION), 0, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+            break;
+        default:
+            gEXSetScissorAlign((*gfx)++, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_RIGHT, 0, 0, -SCREEN_WIDTH, 0, 0, 0,
+                               SCREEN_WIDTH, SCREEN_HEIGHT);
+            break;
+    }
+}
+
 static void apply_ortho_view(InterfaceContext* interfaceCtx) {
     SET_FULLSCREEN_VIEWPORT(&interfaceCtx->view);
     View_ApplyOrthoToOverlay(&interfaceCtx->view);
@@ -65,10 +84,12 @@ static void hud_align(PlayState* play, s32 rect, s32 viewport) {
     OPEN_DISPS(play->state.gfxCtx, "../z_parameter.c", 0);
     set_rect_align(&OVERLAY_DISP, rect);
     set_viewport_align(&OVERLAY_DISP, viewport);
+    set_scissor_align(&OVERLAY_DISP, (rect == viewport) ? viewport : ALIGN_NONE);
     CLOSE_DISPS(play->state.gfxCtx, "../z_parameter.c", 0);
     apply_ortho_view(&play->interfaceCtx);
 }
 
+// Reset the alignment; `scissor`: also stop covering the whole screen with scissors (after the HUD).
 static void hud_reset_align(GraphicsContext* gfxCtx, bool scissor) {
     OPEN_DISPS(gfxCtx, "../z_parameter.c", 0);
     set_rect_align(&OVERLAY_DISP, ALIGN_NONE);
@@ -76,6 +97,8 @@ static void hud_reset_align(GraphicsContext* gfxCtx, bool scissor) {
     if (scissor) {
         gEXSetScissorAlign(OVERLAY_DISP++, G_EX_ORIGIN_NONE, G_EX_ORIGIN_NONE, 0, 0, 0, 0, 0, 0, SCREEN_WIDTH,
                            SCREEN_HEIGHT);
+    } else {
+        set_scissor_align(&OVERLAY_DISP, ALIGN_NONE);
     }
     CLOSE_DISPS(gfxCtx, "../z_parameter.c", 0);
 }
@@ -88,8 +111,7 @@ RECOMP_PATCH void Interface_Draw(PlayState* play) {
     }
 
     OPEN_DISPS(play->state.gfxCtx, "../z_parameter.c", 0);
-    gEXSetScissorAlign(OVERLAY_DISP++, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_RIGHT, 0, 0, -SCREEN_WIDTH, 0, 0, 0, SCREEN_WIDTH,
-                       SCREEN_HEIGHT);
+    set_scissor_align(&OVERLAY_DISP, ALIGN_NONE);
     CLOSE_DISPS(play->state.gfxCtx, "../z_parameter.c", 0);
 
     sButtonsAligned = false;

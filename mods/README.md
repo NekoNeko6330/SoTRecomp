@@ -23,7 +23,8 @@ Then `make` (in this folder) builds every mod into `out/`. `make -C <mod>` build
 
 ## Making a mod
 
-Copy `better_roll` and edit `mod.toml` (id, name, description...) and `src/`. See the
+Copy `better_roll` and edit `mod.toml` (id, name, description...) and `src/`. Set `minimum_recomp_version` to the
+first version of Sands of Time: Recompiled your mod works with (not the current one): newer versions keep loading it. See the
 [Zelda64Recomp mod template](https://github.com/Zelda64Recomp/MMRecompModTemplate) for how mods work: `RECOMP_PATCH`
 replaces a function of the game, `RECOMP_IMPORT` imports a function from another mod or the game (`"*"`), for
 example `recomp_printf`.
