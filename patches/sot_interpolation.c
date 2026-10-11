@@ -290,3 +290,222 @@ RECOMP_PATCH void EffectSs_Draw(PlayState* play, s32 index) {
         particle_prev_life[index] = (effectSs->draw != NULL) ? effectSs->life : -1;
     }
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Camera and skybox (Zelda64Recomp's camera_transform_tagging.c and sky_transform_tagging.c). Without tags, RT64
+// interpolates the camera and the skybox (whose matrix follows the camera's position) on its own, and the skybox shifted
+// and tilted when the camera turned around Link quickly (e.g. with the analog camera).
+
+s32 View_ApplyPerspective(View* view);
+s32 View_ApplyOrtho(View* view);
+
+typedef struct {
+    View* view;
+    Vec3f prev_eye;
+    Vec3f prev_at;
+    Vec3f eye_velocity;
+    Vec3f at_velocity;
+} ViewTracking;
+
+// Each view (the game's, the pause menu's...) is tracked on its own, as they are applied alternately
+static ViewTracking view_tracking[CAMERA_TRANSFORM_ID_COUNT];
+static u32 next_view_tracking;
+static bool camera_skipped;
+
+static ViewTracking* get_view_tracking(View* view, u32* index) {
+    u32 i;
+    ViewTracking* tracking;
+
+    for (i = 0; i < CAMERA_TRANSFORM_ID_COUNT; i++) {
+        if (view_tracking[i].view == view) {
+            *index = i;
+            return &view_tracking[i];
+        }
+    }
+
+    i = next_view_tracking;
+    next_view_tracking = (next_view_tracking + 1) % CAMERA_TRANSFORM_ID_COUNT;
+    tracking = &view_tracking[i];
+    tracking->view = view;
+    tracking->prev_eye = view->eye;
+    tracking->prev_at = view->at;
+    tracking->eye_velocity.x = tracking->eye_velocity.y = tracking->eye_velocity.z = 0.0f;
+    tracking->at_velocity = tracking->eye_velocity;
+    *index = i;
+    return tracking;
+}
+
+// Whether the camera moved continuously (interpolate it) or was cut to another position (don't).
+static bool should_interpolate_perspective(ViewTracking* t, Vec3f* eye, Vec3f* at) {
+    Vec3f predicted_eye;
+    Vec3f predicted_at;
+    f32 eye_dist;
+    f32 at_dist;
+    f32 velocity_diff;
+
+    // Predict the new eye and at positions from the previous ones and their velocities
+    Math_Vec3f_Sum(&t->prev_eye, &t->eye_velocity, &predicted_eye);
+    Math_Vec3f_Sum(&t->prev_at, &t->at_velocity, &predicted_at);
+
+    Math_Vec3f_Diff(eye, &t->prev_eye, &t->eye_velocity);
+    Math_Vec3f_Diff(at, &t->prev_at, &t->at_velocity);
+
+    eye_dist = Math_Vec3f_DistXYZ(&predicted_eye, eye);
+    at_dist = Math_Vec3f_DistXYZ(&predicted_at, at);
+    velocity_diff = Math_Vec3f_DistXYZ(&t->eye_velocity, &t->at_velocity);
+
+    t->prev_eye = *eye;
+    t->prev_at = *at;
+
+    // Both positions moving together
+    if ((velocity_diff <= 3.0f) && (eye_dist <= 100.0f) && (at_dist <= 100.0f)) {
+        return true;
+    }
+    // One of them barely moved, the other one not too far
+    if ((at_dist <= 10.0f) && (eye_dist <= 300.0f)) {
+        return true;
+    }
+    if ((eye_dist <= 10.0f) && (at_dist <= 300.0f)) {
+        return true;
+    }
+
+    if ((velocity_diff > 50.0f) || (at_dist > 50.0f) || (eye_dist > 300.0f)) {
+        t->eye_velocity.x = t->eye_velocity.y = t->eye_velocity.z = 0.0f;
+        t->at_velocity = t->eye_velocity;
+        return false;
+    }
+
+    return true;
+}
+
+// @recomp Tag the camera's matrices.
+RECOMP_PATCH s32 View_Apply(View* view, s32 mask) {
+    bool interpolate = true;
+    u32 index;
+    ViewTracking* tracking = get_view_tracking(view, &index);
+    s32 ret;
+
+    mask = (view->flags & mask) | (mask >> 4);
+
+    if (mask & VIEW_PROJECTION_ORTHO) {
+        ret = View_ApplyOrtho(view);
+    } else {
+        ret = View_ApplyPerspective(view);
+        interpolate = should_interpolate_perspective(tracking, &view->eye, &view->at);
+    }
+
+    OPEN_DISPS(view->gfxCtx, "../z_view.c", 0);
+
+    // Simple interpolation works better for cameras, as they orbit around a focus
+    if (interpolate) {
+        gEXMatrixGroupSimple(POLY_OPA_DISP++, CAMERA_TRANSFORM_ID_START + index, G_EX_NOPUSH, G_MTX_PROJECTION,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
+        gEXMatrixGroupSimple(POLY_XLU_DISP++, CAMERA_TRANSFORM_ID_START + index, G_EX_NOPUSH, G_MTX_PROJECTION,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
+    } else {
+        gEXMatrixGroupSimple(POLY_OPA_DISP++, CAMERA_TRANSFORM_ID_START + index, G_EX_NOPUSH, G_MTX_PROJECTION,
+                             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
+        gEXMatrixGroupSimple(POLY_XLU_DISP++, CAMERA_TRANSFORM_ID_START + index, G_EX_NOPUSH, G_MTX_PROJECTION,
+                             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                             G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
+    }
+
+    camera_skipped = !interpolate;
+
+    CLOSE_DISPS(view->gfxCtx, "../z_view.c", 0);
+
+    return ret;
+}
+
+extern Mtx* sSkyboxDrawMatrix;
+
+// @recomp Skybox_Draw: tag the skybox's matrix (it follows the camera), skipping its interpolation when the camera's
+// was skipped.
+RECOMP_PATCH void SkyboxDraw_Draw(SkyboxContext* skyboxCtx, GraphicsContext* gfxCtx, s16 skyboxId, s16 blend, f32 x,
+                                  f32 y, f32 z) {
+    OPEN_DISPS(gfxCtx, "../z_vr_box_draw.c", 52);
+
+    Gfx_SetupDL_40Opa(gfxCtx);
+
+    gSPSegment(POLY_OPA_DISP++, 0x7, skyboxCtx->staticSegments[0]);
+    gSPSegment(POLY_OPA_DISP++, 0x8, skyboxCtx->staticSegments[1]);
+    gSPSegment(POLY_OPA_DISP++, 0x9, skyboxCtx->palettes);
+
+    gDPSetPrimColor(POLY_OPA_DISP++, 0x00, 0x00, 0, 0, 0, blend);
+    gSPTexture(POLY_OPA_DISP++, 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_ON);
+
+    sSkyboxDrawMatrix = GRAPH_ALLOC(gfxCtx, sizeof(Mtx));
+    Matrix_Translate(x, y, z, MTXMODE_NEW);
+    Matrix_Scale(1.0f, 1.0f, 1.0f, MTXMODE_APPLY);
+    Matrix_RotateX(skyboxCtx->rot.x, MTXMODE_APPLY);
+    Matrix_RotateY(skyboxCtx->rot.y, MTXMODE_APPLY);
+    Matrix_RotateZ(skyboxCtx->rot.z, MTXMODE_APPLY);
+    MATRIX_TO_MTX(sSkyboxDrawMatrix, "../z_vr_box_draw.c", 76);
+    gSPMatrix(POLY_OPA_DISP++, sSkyboxDrawMatrix, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+
+    if (camera_skipped) {
+        gEXMatrixGroupDecomposedSkipAll(POLY_OPA_DISP++, SKYBOX_TRANSFORM_ID_START, G_EX_PUSH, G_MTX_MODELVIEW,
+                                        G_EX_EDIT_NONE);
+    } else {
+        gEXMatrixGroupDecomposedNormal(POLY_OPA_DISP++, SKYBOX_TRANSFORM_ID_START, G_EX_PUSH, G_MTX_MODELVIEW,
+                                       G_EX_EDIT_NONE);
+    }
+
+    gDPSetColorDither(POLY_OPA_DISP++, G_CD_MAGICSQ);
+    gDPSetTextureFilter(POLY_OPA_DISP++, G_TF_BILERP);
+    gDPLoadTLUT_pal256(POLY_OPA_DISP++, skyboxCtx->palettes[0]);
+    gDPSetTextureLUT(POLY_OPA_DISP++, G_TT_RGBA16);
+    gDPSetTextureConvert(POLY_OPA_DISP++, G_TC_FILT);
+
+    if (skyboxCtx->drawType != SKYBOX_DRAW_128) {
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[0]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[1]);
+
+        gDPPipeSync(POLY_OPA_DISP++);
+        gDPLoadTLUT_pal256(POLY_OPA_DISP++, skyboxCtx->palettes[1]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[2]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[3]);
+
+        if (skyboxId != SKYBOX_BAZAAR) {
+            if (skyboxId < SKYBOX_KOKIRI_SHOP || skyboxId > SKYBOX_BOMBCHU_SHOP) {
+                gDPPipeSync(POLY_OPA_DISP++);
+                gDPLoadTLUT_pal256(POLY_OPA_DISP++, skyboxCtx->palettes[2]);
+                gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[4]);
+                gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[5]);
+
+                gDPPipeSync(POLY_OPA_DISP++);
+
+                if (skyboxCtx->drawType != SKYBOX_DRAW_256_3FACE) {
+                    gDPLoadTLUT_pal256(POLY_OPA_DISP++, skyboxCtx->palettes[3]);
+                    gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[6]);
+                    gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[7]);
+                }
+            }
+        }
+    } else {
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[0]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[2]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[4]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[6]);
+        gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[8]);
+        if (skyboxId == SKYBOX_CUTSCENE_MAP) {
+            gSPDisplayList(POLY_OPA_DISP++, skyboxCtx->dListBuf[10]);
+        }
+    }
+
+    gDPPipeSync(POLY_OPA_DISP++);
+
+    gEXPopMatrixGroup(POLY_OPA_DISP++, G_MTX_MODELVIEW);
+
+    CLOSE_DISPS(gfxCtx, "../z_vr_box_draw.c", 125);
+}
+
+// @recomp Skybox_UpdateMatrix: when a camera moves after the frame was drawn (talking, first person), the game updates
+// the skybox's matrix of the frame being drawn, which the RSP only reads later on the console. Here that frame was
+// already sent to the renderer, which could be reading it: leave it (the next frame's matrix is set when it's drawn).
+RECOMP_PATCH Mtx* SkyboxDraw_UpdateMatrix(SkyboxContext* skyboxCtx, f32 x, f32 y, f32 z) {
+    return sSkyboxDrawMatrix;
+}

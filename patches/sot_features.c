@@ -57,6 +57,47 @@ static Vec3f add_geo(Vec3f* origin, VecGeo* geo) {
     return v;
 }
 
+// The game's camera settings (z_camera_data.inc.c)
+typedef struct {
+    s16 funcId;
+    s16 valueCnt;
+    void* values;
+} SotCameraMode;
+
+typedef struct {
+    u32 flags;
+    SotCameraMode* cameraModes;
+} SotCameraSetting;
+
+extern SotCameraSetting sCameraSettings[];
+
+// Whether the camera follows Link freely, which the analog camera can then rotate: not fixed cameras, cameras in
+// prerendered rooms (whose backgrounds are skyboxes drawn for the room's camera), cutscenes...
+static bool analog_cam_allowed(Camera* camera) {
+    PlayState* play = camera->play;
+    s16 funcId;
+
+    switch (play->skyboxId) {
+        case SKYBOX_NONE:
+        case SKYBOX_NORMAL_SKY:
+        case SKYBOX_CUTSCENE_MAP:
+        case SKYBOX_UNSET_1D:
+        case SKYBOX_UNSET_27:
+            break;
+        default:
+            return false;
+    }
+
+    if ((camera->setting <= CAM_SET_NONE) || (camera->setting >= CAM_SET_MAX) || (camera->mode < 0) ||
+        (camera->mode >= 30) || !((sCameraSettings[camera->setting].flags >> camera->mode) & 1)) {
+        return false;
+    }
+
+    funcId = sCameraSettings[camera->setting].cameraModes[camera->mode].funcId;
+    return ((funcId >= CAM_FUNC_NORM0) && (funcId <= CAM_FUNC_PARA4)) ||
+           ((funcId >= CAM_FUNC_JUMP0) && (funcId <= CAM_FUNC_BATT4));
+}
+
 static void analog_cam_update(Camera* camera) {
     static s32 sStickActive = false;
     PlayState* play = camera->play;
@@ -69,7 +110,7 @@ static void analog_cam_update(Camera* camera) {
     s16 step;
 
     // First person and aiming use the right stick to aim instead
-    if ((camera->status != CAM_STAT_ACTIVE) || (play->pauseCtx.state != 0) ||
+    if ((camera->status != CAM_STAT_ACTIVE) || (play->pauseCtx.state != 0) || !analog_cam_allowed(camera) ||
         (camera->mode == CAM_MODE_FIRST_PERSON) || (camera->mode == CAM_MODE_AIM_ADULT) ||
         (camera->mode == CAM_MODE_AIM_CHILD) || (camera->mode == CAM_MODE_AIM_BOOMERANG)) {
         stickX = stickY = 0.0f;

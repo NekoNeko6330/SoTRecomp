@@ -4,6 +4,9 @@
 #include "patches.h"
 
 // RT64 matrix group ids (see Zelda64Recomp's transform_ids.h)
+#define CAMERA_TRANSFORM_ID_START 0x10U // one for each tracked view
+#define CAMERA_TRANSFORM_ID_COUNT 8
+#define SKYBOX_TRANSFORM_ID_START 0x100U
 #define PARTICLE_TRANSFORM_ID_START 0x200U
 #define ACTOR_TRANSFORM_LIMB_COUNT 256
 // One id for each limb and another one for each post-limb draw
