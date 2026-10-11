@@ -260,27 +260,24 @@ jobs:
             Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
 
             **New in this version**
-            - The pause menu's cursor is visible again
-            - Widescreen HUD: the HUD is aligned to the sides of the screen
-            - Epona and the other horses are interpolated
-            - The sky no longer shifts or tilts when the camera turns: the camera and the sky are now interpolated
-              like in Zelda64Recomp
-            - The analog camera no longer moves fixed cameras, cameras in prerendered rooms or scripted cameras
-            - Crash fixes: audio (unhandled jump target in aspMain), a division by zero in the message queues, the HUD
-            - Mods made for the previous version have to be updated (0.6.0)
+            - Sundown Castle: no more plane in front of the fixed camera. Parts of the rooms the console doesn't draw
+              were drawn stretched across the screen (G_CULLDL is now implemented in RT64)
+            - The action prompts (A button) are no longer cut off
+            - The analog camera works again when hanging from a ledge
+            - Mods made for an earlier version keep working: they only need the version they were made for
 
             **Mods** (`SoTRecompiled-Mods.zip`): put the `.nrm` files in the `mods` folder (Mods in the launcher has a
-            button to open it), replacing the ones from the previous version
+            button to open it)
             - Better Roll: controlled and faster rolling (thinedave's ocarina-things)
             - Look Tracking: Link's head and eyes follow what's around him (ModOcarina)
             - Uncensored Script: restores parts of the script that were changed or removed after the original version of
-              Sands of Time (1.0). Replaces Wisdom Fairy 1.0 Text: remove `sot_fairy_text_1_0.nrm`
+              Sands of Time (1.0). It replaces Wisdom Fairy 1.0 Text (`sot_fairy_text_1_0.nrm`): remove that one
             - Torch Texture Test: replaces the torches' flame guard texture (texture pack in an .nrm)
             To make mods, see `mods/README.md` in the repository.
 
             Built on the current Zelda64Recomp runtime (N64ModernRuntime and RT64). The game runs at its full speed
-            (20 fps, interpolated to your display's refresh rate). This is still an early build: expect crashes, and
-            please send the crash logs.
+            (20 fps, interpolated to your display's refresh rate). If it crashes, please send the crash log
+            (in the `crash_logs` folder).
 
             If the game crashes with Direct3D 12 ("device removed"), update your GPU driver, or use Vulkan: set
             `"api_option": "Vulkan"` in `SoTRecompiled/graphics.json`.
