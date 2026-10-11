@@ -13,7 +13,7 @@ actor (and the animations' eye directions)"""
 short_description = "Link's head and eyes follow what's around him."
 authors = [ "Claude" ]
 game_id = "sot"
-minimum_recomp_version = "0.5.0"
+minimum_recomp_version = "0.6.0"
 dependencies = []
 optional_dependencies = []
 native_libraries = []

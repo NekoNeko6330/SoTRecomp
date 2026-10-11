@@ -2,7 +2,7 @@
 
 PYTHON ?= python3
 
-CODE_MODS    := better_roll look_tracking fairy_text_1_0
+CODE_MODS    := better_roll look_tracking uncensored_script
 TEXTURE_MODS := torch_texture
 
 all: code_mods texture_mods

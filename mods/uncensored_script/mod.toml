@@ -1,0 +1,22 @@
+# Uncensored Script: restores text that was changed or removed after Sands of Time's original version.
+
+[manifest]
+id = "sot_uncensored_script"
+version = "1.0.0"
+display_name = "Uncensored Script"
+description = """
+Restores parts of the script that were changed or removed after the original version of Sands of Time (1.0)."""
+short_description = "Restores script changed after Sands of Time's original version."
+authors = [ "Claude" ]
+game_id = "sot"
+minimum_recomp_version = "0.6.0"
+dependencies = []
+optional_dependencies = []
+native_libraries = []
+
+[inputs]
+elf_path = "build/mod.elf"
+mod_filename = "sot_uncensored_script"
+func_reference_syms_file = "../../sot.syms.toml"
+data_reference_syms_files = [ "../../sot.datasyms.toml" ]
+additional_files = []
