@@ -260,21 +260,30 @@ jobs:
             Requirements: a GPU with Vulkan 1.2 or Direct3D 12, a CPU with AVX. On Linux, SDL2 must be installed.
 
             **New in this version**
-            - Fixed a crash when some actors are removed (a function the recompiler had missed)
-            - Launcher: The Legend of Zelda: Sands of Time, with this project's version
-            - The version is now this project's (0.5.0): mods made for the previous version have to be updated
+            - The pause menu's cursor is visible again
+            - Widescreen HUD: the HUD is aligned to the sides of the screen
+            - Epona and the other horses are interpolated
+            - The sky no longer shifts or tilts when the camera turns: the camera and the sky are now interpolated
+              like in Zelda64Recomp
+            - The analog camera no longer moves fixed cameras, cameras in prerendered rooms or scripted cameras
+            - Crash fixes: audio (unhandled jump target in aspMain), a division by zero in the message queues, the HUD
+            - Mods made for the previous version have to be updated (0.6.0)
 
             **Mods** (`SoTRecompiled-Mods.zip`): put the `.nrm` files in the `mods` folder (Mods in the launcher has a
             button to open it), replacing the ones from the previous version
             - Better Roll: controlled and faster rolling (thinedave's ocarina-things)
             - Look Tracking: Link's head and eyes follow what's around him (ModOcarina)
-            - Wisdom Fairy 1.0 Text: the Great Fairy of Wisdom's line about Big Brother, as it was in 1.0
+            - Uncensored Script: restores parts of the script that were changed or removed after the original version of
+              Sands of Time (1.0). Replaces Wisdom Fairy 1.0 Text: remove `sot_fairy_text_1_0.nrm`
             - Torch Texture Test: replaces the torches' flame guard texture (texture pack in an .nrm)
             To make mods, see `mods/README.md` in the repository.
 
             Built on the current Zelda64Recomp runtime (N64ModernRuntime and RT64). The game runs at its full speed
             (20 fps, interpolated to your display's refresh rate). This is still an early build: expect crashes, and
             please send the crash logs.
+
+            If the game crashes with Direct3D 12 ("device removed"), update your GPU driver, or use Vulkan: set
+            `"api_option": "Vulkan"` in `SoTRecompiled/graphics.json`.
 
             If it runs slowly, check that the game uses your dedicated GPU, and try lower settings in the
             Graphics menu (resolution, MSAA). Run with the environment variable `SOTRECOMP_FPS=1` to print
